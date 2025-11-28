@@ -5,7 +5,7 @@ import PageHeader from "./PageHeader";
 import TextAreaInput from "./TextAreaInput";
 import PrimaryToggle from "./PrimaryToggle";
 import ButtonPrimary from "./ButtonPrimary";
-import ConfirmPopup from "./ConfirmPopup";
+import ConfirmPopup from "./ConfirmPopUp";
 import { api } from "../lib/axios";
 
 export default function QuestionForm({
