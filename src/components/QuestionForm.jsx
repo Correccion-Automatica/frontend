@@ -27,7 +27,7 @@ export default function QuestionForm({
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [guidelineId, setGuidelineId] = useState(null);
   const [isPublished, setIsPublished] = useState(isPublishedInitial);
-  const [publishMessage, setPublishMessage] = useState(""); // 🔔 mensaje publicar/despublicar
+  const [publishMessage, setPublishMessage] = useState("");
 
   const readOnly = !isEditing;
 
@@ -90,14 +90,11 @@ export default function QuestionForm({
       });
 
       setIsPublished(newStatus);
-
-      // 🔔 Mensaje según acción
       const msg = newStatus
         ? "Pregunta publicada correctamente."
         : "Pregunta despublicada correctamente.";
       setPublishMessage(msg);
 
-      // Opcional: que desaparezca solo después de unos segundos
       setTimeout(() => setPublishMessage(""), 4000);
     } catch (err) {
       console.error("❌ Error al publicar/despublicar:", err);
@@ -105,7 +102,7 @@ export default function QuestionForm({
   };
 
   /* --------------------------------------------------------
-   * 4) PATCH guardar pregunta (totalmente desde aquí)
+   * 4) PATCH guardar pregunta
    * -------------------------------------------------------- */
   const handleSave = async () => {
     try {
@@ -114,13 +111,11 @@ export default function QuestionForm({
         hours * 3600 +
         minutes * 60;
 
-      // Body base (lo que siempre se puede editar)
       let body = {
         duration: durationSeconds,
         endDatetime: dueDate ? new Date(dueDate).toISOString() : null,
       };
 
-      // Si NO hay guideline → permitir editar todo
       if (!guidelineId) {
         body.title = title;
         body.content = content;
@@ -140,16 +135,26 @@ export default function QuestionForm({
   return (
     <div className="mt-6 px-4 space-y-8 relative">
 
-      {/* ✏️ EDITAR */}
+      {/* ✏️ EDITAR + 🔍 VER RESPUESTAS */}
       {mode === "view" && !isEditing && (
-        <div className="absolute top-[-20px] right-[30px]">
+        <div className="absolute top-[-20px] right-[30px] flex flex-col items-end gap-2">
+
           <ButtonPrimary onClick={() => setIsEditing(true)}>
             ✏️ Editar
           </ButtonPrimary>
+
+          <Link
+            to={`/teacher-profile/course-view/${courseId}/question/${questionId}/answers`}
+          >
+            <ButtonPrimary className="bg-gray-600 hover:bg-gray-700">
+              🔍 Ver respuestas
+            </ButtonPrimary>
+          </Link>
+
         </div>
       )}
 
-      {/* 🎉 Banner guardar pregunta */}
+      {/* 🎉 Banner guardar */}
       {showSuccessBanner && (
         <div className="max-w-3xl mx-auto mt-2 text-center p-3 rounded-xl 
                         bg-green-100 text-green-700 border border-green-300 
@@ -158,7 +163,7 @@ export default function QuestionForm({
         </div>
       )}
 
-      {/* 🔔 Banner publicar / despublicar */}
+      {/* 🔔 Banner publicar/despublicar */}
       {publishMessage && (
         <div className="max-w-3xl mx-auto mt-2 text-center p-3 rounded-xl 
                         bg-blue-100 text-blue-700 border border-blue-300 
@@ -177,7 +182,7 @@ export default function QuestionForm({
           label="Título de la pregunta"
           value={title}
           onChange={setTitle}
-          readOnly={readOnly || guidelineId}  // bloqueado si hay pauta
+          readOnly={readOnly || guidelineId}
         />
 
         {/* DURACIÓN */}
@@ -186,27 +191,9 @@ export default function QuestionForm({
             Duración
           </h2>
           <div className="flex justify-center gap-6 flex-wrap">
-            <PrimaryToggle
-              label="Días"
-              value={days}
-              onChange={setDays}
-              range={31}
-              readOnly={readOnly}
-            />
-            <PrimaryToggle
-              label="Horas"
-              value={hours}
-              onChange={setHours}
-              range={23}
-              readOnly={readOnly}
-            />
-            <PrimaryToggle
-              label="Minutos"
-              value={minutes}
-              onChange={setMinutes}
-              range={59}
-              readOnly={readOnly}
-            />
+            <PrimaryToggle label="Días" value={days} onChange={setDays} range={31} readOnly={readOnly} />
+            <PrimaryToggle label="Horas" value={hours} onChange={setHours} range={23} readOnly={readOnly} />
+            <PrimaryToggle label="Minutos" value={minutes} onChange={setMinutes} range={59} readOnly={readOnly} />
           </div>
         </div>
 
@@ -236,13 +223,12 @@ export default function QuestionForm({
           label="Contenido de la pregunta"
           value={content}
           onChange={setContent}
-          readOnly={readOnly || guidelineId} // bloqueado si hay pauta
+          readOnly={readOnly || guidelineId}
         />
 
         {/* PAUTA + PUBLICAR */}
         <div className="flex justify-center gap-4 pt-4">
 
-          {/* PAUTA */}
           {guidelineId ? (
             <ButtonPrimary onClick={handleDownloadPDF}>
               📄 Descargar pauta
@@ -253,7 +239,6 @@ export default function QuestionForm({
             </Link>
           )}
 
-          {/* PUBLICAR SIEMPRE ACTIVO */}
           <ButtonPrimary
             onClick={handleTogglePublish}
             className={`${isPublished ? "bg-red-600 hover:bg-red-700" : ""}`}
