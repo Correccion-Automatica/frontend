@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 // Use VITE_API_TARGET like "http://localhost:3002" or "http://192.168.1.10:3002"
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const defaultTarget = 'http://localhost:3002'
+  const defaultTarget = 'https://backend-28ks.onrender.com'
   const target = env.VITE_API_TARGET || defaultTarget
 
   return {
