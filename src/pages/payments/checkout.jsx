@@ -74,7 +74,7 @@ export default function Checkout() {
           <h3 className="font-medium text-lg mb-3">Resumen de la orden</h3>
           <div className="flex justify-between py-2 border-b"><span>Descripción</span><span>{order.description || '-'}</span></div>
           <div className="flex justify-between py-2 border-b"><span>Monto</span><span className="font-semibold">{order.amount} {order.currency}</span></div>
-          <div className="flex justify-between py-2 border-b"><span>Metodo</span><span>{order.externalId ? 'Mercado Pago' : 'Mercado Pago (Sandbox)'}</span></div>
+          <div className="flex justify-between py-2 border-b"><span>Metodo</span><span>{order.externalId ? 'Mercado Pago' : 'Mercado Pago'}</span></div>
           <div className="flex justify-between py-2"><span>ID externo</span><span className="text-sm text-gray-600">{order.externalId || '-'}</span></div>
 
           {order.mpPreferenceId && (
@@ -87,7 +87,7 @@ export default function Checkout() {
             <h4 className="font-medium mb-2">Instrucciones</h4>
             <ol className="list-decimal list-inside text-sm text-gray-600">
               <li>Haz click en el enlace de pago o espera la redirección desde la página de compra.</li>
-              <li>Completa el checkout en Mercado Pago (modo sandbox si aplica).</li>
+              <li>Completa el checkout en Mercado Pago.</li>
               <li>Al finalizar volverás a la aplicación y la orden se marcará como pagada.</li>
             </ol>
           </div>
@@ -97,7 +97,7 @@ export default function Checkout() {
           <h4 className="font-medium mb-3">Acciones</h4>
           <div className="flex flex-col gap-3">
               {order.status !== 'paid' && (
-                <button onClick={handleSimulatePay} className="w-full px-4 py-2 bg-green-600 text-white rounded" disabled={busy}>{busy ? 'Procesando...' : 'Simular pago (dev)'}</button>
+                <button onClick={handleSimulatePay} className="w-full px-4 py-2 bg-green-600 text-white rounded" disabled={busy}>{busy ? 'Procesando...' : 'Confirmar pago manual'}</button>
               )}
               <button onClick={() => navigate('/payments/purchase')} className="w-full px-4 py-2 border rounded">Volver a comprar</button>
               <button onClick={() => navigate('/teacher-profile')} className="w-full px-4 py-2 border rounded">Ir a mis cursos</button>
@@ -105,7 +105,7 @@ export default function Checkout() {
 
           <div className="mt-6 text-xs text-gray-500">
             <div className="font-medium">Soporte</div>
-            <div>Si necesitas ayuda con el pago, contacta a soporte@tuapp.io</div>
+            <div>Si necesitas ayuda con el pago, contacta a soporte@automaticcorrection.com</div>
           </div>
         </aside>
       </div>
