@@ -124,7 +124,6 @@ export default function QuestionForm({
       });
 
       setIsPublished(newStatus);
-
       const msg = newStatus
         ? "Pregunta publicada correctamente."
         : "Pregunta despublicada correctamente.";
@@ -138,7 +137,6 @@ export default function QuestionForm({
 
   /* --------------------------------------------------------
    * 4) PATCH guardar pregunta
-   *    (solo cambiamos el cálculo del endDatetime)
    * -------------------------------------------------------- */
   const handleSave = async () => {
     try {
@@ -157,13 +155,11 @@ export default function QuestionForm({
         }
       }
 
-      // Body base (lo que siempre se puede editar)
       let body = {
         duration: durationSeconds,
         endDatetime: endDatetime, // 👈 ahora es derivada, no el dueDate directo
       };
 
-      // Si NO hay guideline → permitir editar todo (igual que antes)
       if (!guidelineId) {
         body.title = title;
         body.content = content;
@@ -182,24 +178,27 @@ export default function QuestionForm({
 
   return (
     <div className="mt-6 px-4 space-y-8 relative">
-      {/* ✏️ EDITAR */}
+
+      {/* ✏️ EDITAR + 🔍 VER RESPUESTAS */}
       {mode === "view" && !isEditing && (
-        <div className="absolute top-[-20px] right-[30px]">
-          <ButtonPrimary
-            onClick={() => setIsEditing(true)}
-            className="
-              bg-gradient-to-r from-indigo-500 to-blue-500
-              text-white
-              hover:from-indigo-600 hover:to-blue-600
-              transition-colors
-            "
-          >
+        <div className="absolute top-[-20px] right-[30px] flex flex-col items-end gap-2">
+
+          <ButtonPrimary onClick={() => setIsEditing(true)}>
             ✏️ Editar
           </ButtonPrimary>
+
+          <Link
+            to={`/teacher-profile/course-view/${courseId}/question/${questionId}/answers`}
+          >
+            <ButtonPrimary className="bg-gray-600 hover:bg-gray-700">
+              🔍 Ver respuestas
+            </ButtonPrimary>
+          </Link>
+
         </div>
       )}
 
-      {/* 🎉 Banner guardar pregunta */}
+      {/* 🎉 Banner guardar */}
       {showSuccessBanner && (
         <div className="max-w-3xl mx-auto mt-2 text-center p-3 rounded-xl 
                         bg-green-100 text-green-700 border border-green-300 
@@ -208,7 +207,7 @@ export default function QuestionForm({
         </div>
       )}
 
-      {/* 🔔 Banner publicar / despublicar */}
+      {/* 🔔 Banner publicar/despublicar */}
       {publishMessage && (
         <div className="max-w-3xl mx-auto mt-2 text-center p-3 rounded-xl 
                         bg-blue-100 text-blue-700 border border-blue-300 
@@ -228,18 +227,30 @@ export default function QuestionForm({
           label="Título de la pregunta"
           value={title}
           onChange={setTitle}
-          placeholder="Ej: Caso de estudio sobre posicionamiento de marca"
-          readOnly={readOnly || guidelineId} // igual que en código 1
+          readOnly={readOnly || guidelineId}
         />
 
-        {/* 🕒 PLAZO DE LA ACTIVIDAD (tiempo + estilos del código 2) */}
-        <section className="space-y-5">
-          <header className="space-y-1 text-center md:text-left">
-            <h2 className="text-base md:text-lg font-semibold text-[var(--color-text)]">
-              Plazo de la actividad
-            </h2>
-            <p className="text-xs text-[var(--color-muted)]">
-              Define desde cuándo estará disponible y cuánto tiempo podrán responder.
+        {/* DURACIÓN */}
+        <div className="text-center">
+          <h2 className="text-md font-semibold mb-4 text-[var(--color-text)]">
+            Duración
+          </h2>
+          <div className="flex justify-center gap-6 flex-wrap">
+            <PrimaryToggle label="Días" value={days} onChange={setDays} range={31} readOnly={readOnly} />
+            <PrimaryToggle label="Horas" value={hours} onChange={setHours} range={23} readOnly={readOnly} />
+            <PrimaryToggle label="Minutos" value={minutes} onChange={setMinutes} range={59} readOnly={readOnly} />
+          </div>
+        </div>
+
+        {/* FECHA */}
+        <div className="text-center">
+          <h2 className="text-md font-semibold mb-4 text-[var(--color-text)]">
+            Fecha y hora de entrega
+          </h2>
+
+          {readOnly ? (
+            <p className="text-[var(--color-muted)]">
+              {dueDate ? new Date(dueDate).toLocaleString("es-CL") : "No definida"}
             </p>
           </header>
 
