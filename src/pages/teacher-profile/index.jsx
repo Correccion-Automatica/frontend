@@ -40,6 +40,11 @@ export default function TeacherProfile() {
   const teacherName = user?.fullName || user?.name || "Profesor/a";
   const teacherEmail = user?.email || "";
   const credits = Number(user?.remaining_credits ?? user?.credits ?? 0);
+  const creditSuggestions = [
+    { name: "Mini Pack", detail: "500 créditos — $2.900 CLP" },
+    { name: "Medium Pack", detail: "1.000 créditos — $4.900 CLP" },
+    { name: "Max Pack", detail: "1.500 créditos — $6.900 CLP" },
+  ];
 
   const navLinks = [
     { to: "/dashboard", label: "Tablero", icon: <FaHome /> },
@@ -58,7 +63,7 @@ export default function TeacherProfile() {
 
     return (
       <div className={`${baseClasses} ${className}`.trim()}>
-        <div className="text-sm text-gray-500">Créditos</div>
+        <div className="text-sm text-gray-500">Créditos disponibles</div>
         <div className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
           {credits.toLocaleString()} créditos
         </div>
@@ -67,7 +72,7 @@ export default function TeacherProfile() {
           to="/payments/history"
           className="inline-flex items-center justify-center px-3 py-1 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
         >
-          Ver detalle
+          Ver historial
         </Link>
         <Link
           to="/payments/purchase"
@@ -75,6 +80,15 @@ export default function TeacherProfile() {
         >
           Comprar créditos
         </Link>
+        <div className="pt-3 border-t border-gray-100 dark:border-gray-800 space-y-1">
+          <p className="text-xs font-semibold text-gray-500">Paquetes sugeridos</p>
+          {creditSuggestions.map((item) => (
+            <p key={item.name} className="text-xs text-gray-600 dark:text-gray-400 flex justify-between gap-2">
+              <span>{item.name}</span>
+              <span className="font-medium">{item.detail}</span>
+            </p>
+          ))}
+        </div>
       </div>
     );
   };
