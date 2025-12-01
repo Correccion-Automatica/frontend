@@ -313,11 +313,6 @@ export default function CreateGuideline() {
               </ButtonPrimary>
 
               {/* Descargar PDF solo si existe guidelineId */}
-              {guidelineId && (
-                <ButtonPrimary onClick={() => handleDownloadPDF(guidelineId)}>
-                  📄 Descargar Pauta en PDF
-                </ButtonPrimary>
-              )}
             </div>
           )}
         </div>

@@ -5,15 +5,11 @@ import PageHeader from "./PageHeader";
 import TextAreaInput from "./TextAreaInput";
 import PrimaryToggle from "./PrimaryToggle";
 import ButtonPrimary from "./ButtonPrimary";
-import ConfirmPopup from "./ConfirmPopUp";
 import { api } from "../lib/axios";
 
-/**
- * Calcula la fecha/hora de finalización en base a:
- * - fecha de inicio (startDateIso)
- * - duración en días / horas / minutos
- * Devuelve un string listo para mostrar en es-CL o null si falta info.
- */
+/* --------------------------------------------------------
+ * Función: calcular fecha de cierre automáticamente
+ * -------------------------------------------------------- */
 function getEndDateLabel(startDateIso, days, hours, minutes) {
   if (!startDateIso) return null;
 
@@ -44,13 +40,13 @@ export default function QuestionForm({
   setHours,
   minutes,
   setMinutes,
-  dueDate, // ahora lo usamos como INICIO de la actividad
+  dueDate,
   setDueDate,
   content,
   setContent,
   mode = "view",
-  userCredits = 1000000,
   pautaCost = 1000,
+  userCredits = 1000000,
   isPublishedInitial = false,
 }) {
   const { courseId, questionId } = useParams();
@@ -66,7 +62,7 @@ export default function QuestionForm({
   const endDateLabel = getEndDateLabel(dueDate, days, hours, minutes);
 
   /* --------------------------------------------------------
-   * 1) Buscar guideline
+   * 1) Buscar guideline asociada a la pregunta
    * -------------------------------------------------------- */
   useEffect(() => {
     const fetchGuidelines = async () => {
@@ -88,7 +84,7 @@ export default function QuestionForm({
   }, [questionId]);
 
   /* --------------------------------------------------------
-   * 2) Descargar PDF
+   * 2) Descargar PDF de pauta
    * -------------------------------------------------------- */
   const handleDownloadPDF = async () => {
     if (!guidelineId) return;
@@ -113,7 +109,7 @@ export default function QuestionForm({
   };
 
   /* --------------------------------------------------------
-   * 3) Publicar / Despublicar
+   * 3) Publicar / Despublicar pregunta
    * -------------------------------------------------------- */
   const handleTogglePublish = async () => {
     try {
@@ -124,11 +120,11 @@ export default function QuestionForm({
       });
 
       setIsPublished(newStatus);
-
-      const msg = newStatus
-        ? "Pregunta publicada correctamente."
-        : "Pregunta despublicada correctamente.";
-      setPublishMessage(msg);
+      setPublishMessage(
+        newStatus
+          ? "Pregunta publicada correctamente."
+          : "Pregunta despublicada correctamente."
+      );
 
       setTimeout(() => setPublishMessage(""), 4000);
     } catch (err) {
@@ -138,7 +134,6 @@ export default function QuestionForm({
 
   /* --------------------------------------------------------
    * 4) PATCH guardar pregunta
-   *    (solo cambiamos el cálculo del endDatetime)
    * -------------------------------------------------------- */
   const handleSave = async () => {
     try {
@@ -147,7 +142,7 @@ export default function QuestionForm({
         (Number(hours) || 0) * 3600 +
         (Number(minutes) || 0) * 60;
 
-      // Calculamos fecha de cierre como inicio + duración
+      // Calculamos el endDatetime real
       let endDatetime = null;
       if (dueDate && durationSeconds > 0) {
         const start = new Date(dueDate);
@@ -157,187 +152,109 @@ export default function QuestionForm({
         }
       }
 
-      // Body base (lo que siempre se puede editar)
       let body = {
         duration: durationSeconds,
-        endDatetime: endDatetime, // 👈 ahora es derivada, no el dueDate directo
+        endDatetime,
       };
 
-      // Si NO hay guideline → permitir editar todo (igual que antes)
       if (!guidelineId) {
         body.title = title;
         body.content = content;
       }
 
-      const res = await api.patch(`/questions/${questionId}`, body);
+      await api.patch(`/questions/${questionId}`, body);
 
-      setIsEditing(false);
       setShowSuccessBanner(true);
-
-      return res.data;
-    } catch (error) {
-      console.error("❌ Error al actualizar pregunta:", error);
+      setIsEditing(false);
+    } catch (err) {
+      console.error("❌ Error al actualizar pregunta:", err);
     }
   };
 
   return (
     <div className="mt-6 px-4 space-y-8 relative">
-      {/* ✏️ EDITAR */}
+
+      {/* BOTONES SUPERIORES */}
       {mode === "view" && !isEditing && (
-        <div className="absolute top-[-20px] right-[30px]">
-          <ButtonPrimary
-            onClick={() => setIsEditing(true)}
-            className="
-              bg-gradient-to-r from-indigo-500 to-blue-500
-              text-white
-              hover:from-indigo-600 hover:to-blue-600
-              transition-colors
-            "
-          >
+        <div className="absolute top-[-20px] right-[30px] flex flex-col gap-2 items-end">
+          <ButtonPrimary onClick={() => setIsEditing(true)}>
             ✏️ Editar
           </ButtonPrimary>
+
+          <Link to={`/teacher-profile/course-view/${courseId}/question/${questionId}/answers`}>
+            <ButtonPrimary className="bg-gray-600 hover:bg-gray-700">
+              🔍 Ver respuestas
+            </ButtonPrimary>
+          </Link>
         </div>
       )}
 
-      {/* 🎉 Banner guardar pregunta */}
+      {/* BANNER GUARDADO */}
       {showSuccessBanner && (
-        <div className="max-w-3xl mx-auto mt-2 text-center p-3 rounded-xl 
-                        bg-green-100 text-green-700 border border-green-300 
-                        font-medium animate-fade-in">
+        <div className="max-w-3xl mx-auto mt-2 text-center p-3 rounded-xl bg-green-100 text-green-700 border border-green-300 font-medium">
           🎉 Pregunta guardada correctamente
         </div>
       )}
 
-      {/* 🔔 Banner publicar / despublicar */}
+      {/* BANNER PUBLICAR */}
       {publishMessage && (
-        <div className="max-w-3xl mx-auto mt-2 text-center p-3 rounded-xl 
-                        bg-blue-100 text-blue-700 border border-blue-300 
-                        font-medium animate-fade-in">
+        <div className="max-w-3xl mx-auto mt-2 text-center p-3 rounded-xl bg-blue-100 text-blue-700 border border-blue-300 font-medium">
           {publishMessage}
         </div>
       )}
 
-      {/* CARD */}
-      <div
-        className="max-w-3xl mx-auto p-8 rounded-3xl 
-                   bg-[var(--color-surface)] border border-[var(--color-border)] 
-                   shadow-md space-y-8"
-      >
-        {/* 📝 TÍTULO */}
+      {/* CARD PRINCIPAL */}
+      <div className="max-w-3xl mx-auto p-8 rounded-3xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-md space-y-8">
+
+        {/* TÍTULO */}
         <TextAreaInput
           label="Título de la pregunta"
           value={title}
           onChange={setTitle}
-          placeholder="Ej: Caso de estudio sobre posicionamiento de marca"
-          readOnly={readOnly || guidelineId} // igual que en código 1
+          readOnly={readOnly || guidelineId}
         />
 
-        {/* 🕒 PLAZO DE LA ACTIVIDAD (tiempo + estilos del código 2) */}
-        <section className="space-y-5">
-          <header className="space-y-1 text-center md:text-left">
-            <h2 className="text-base md:text-lg font-semibold text-[var(--color-text)]">
-              Plazo de la actividad
-            </h2>
-            <p className="text-xs text-[var(--color-muted)]">
-              Define desde cuándo estará disponible y cuánto tiempo podrán responder.
-            </p>
-          </header>
-
-          <div className="grid gap-5 md:grid-cols-2">
-            {/* 📅 Inicio de la actividad */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-text)]">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-sm">
-                  <FaPlay />
-                </span>
-                <span>Inicio de la actividad</span>
-              </div>
-
-              {!readOnly ? (
-                <input
-                  type="datetime-local"
-                  value={dueDate || ""}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  min={new Date().toISOString().slice(0, 16)}
-                  className="w-full rounded-xl border border-[var(--color-border)] 
-                             bg-[var(--color-background)] px-3 py-2 text-sm 
-                             text-[var(--color-text)] outline-none 
-                             hover:border-indigo-400 
-                             focus:ring-2 focus:ring-indigo-400/80"
-                />
-              ) : (
-                <p className="text-sm text-[var(--color-muted)]">
-                  {dueDate
-                    ? new Date(dueDate).toLocaleString("es-CL", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })
-                    : "No definido"}
-                </p>
-              )}
-            </div>
-
-            {/* ⏱ Tiempo disponible */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-text)]">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 text-purple-700 text-sm">
-                  <FaHourglassHalf />
-                </span>
-                <span>Tiempo disponible</span>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <PrimaryToggle
-                  label="Días"
-                  value={days}
-                  onChange={setDays}
-                  range={31}
-                  readOnly={readOnly}
-                />
-                <PrimaryToggle
-                  label="Horas"
-                  value={hours}
-                  onChange={setHours}
-                  range={23}
-                  readOnly={readOnly}
-                />
-                <PrimaryToggle
-                  label="Minutos"
-                  value={minutes}
-                  onChange={setMinutes}
-                  range={59}
-                  readOnly={readOnly}
-                />
-              </div>
-            </div>
+        {/* DURACIÓN */}
+        <div className="text-center">
+          <h2 className="text-md font-semibold mb-4">Duración</h2>
+          <div className="flex justify-center gap-4 flex-wrap">
+            <PrimaryToggle label="Días" value={days} onChange={setDays} range={31} readOnly={readOnly} />
+            <PrimaryToggle label="Horas" value={hours} onChange={setHours} range={23} readOnly={readOnly} />
+            <PrimaryToggle label="Minutos" value={minutes} onChange={setMinutes} range={59} readOnly={readOnly} />
           </div>
+        </div>
 
-          {/* Tarjeta de finalización: "La actividad se cierra" */}
-          <div className="mt-2 rounded-2xl border border-blue-200 bg-blue-50/90 px-4 py-3 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-white shadow-md">
-                <FaClock className="text-lg" />
-              </div>
-              <div>
-                <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-blue-700">
-                  La actividad se cierra
-                </p>
-                <p className="text-sm md:text-base font-bold text-blue-900">
-                  {endDateLabel
-                    ? endDateLabel
-                    : "Completa el inicio y el tiempo para ver la hora de cierre"}
-                </p>
-              </div>
-            </div>
+        {/* FECHA */}
+        <div className="text-center">
+          <h2 className="text-md font-semibold mb-4">Fecha y hora de inicio</h2>
 
-            <p className="text-[0.7rem] sm:text-xs text-blue-800/80 max-w-sm">
-              Consejo: suele ser útil para preguntas breves, dejar unos{" "}
-              <span className="font-semibold">1–5 minutos de gracia</span> en la
-              duración para que quienes tengan problemas de conexión alcancen a
-              entrar sin estrés.
+          {readOnly ? (
+            <p className="text-[var(--color-muted)]">
+              {dueDate ? new Date(dueDate).toLocaleString("es-CL") : "No definida"}
+            </p>
+          ) : (
+            <input
+              type="datetime-local"
+              value={dueDate || ""}
+              onChange={(e) => setDueDate(e.target.value)}
+              min={new Date().toISOString().slice(0, 16)}
+              className="p-2 rounded-md border bg-[var(--color-background)]"
+            />
+          )}
+        </div>
+
+        {/* FECHA DE CIERRE */}
+        <div className="rounded-xl border bg-blue-50 px-4 py-3 shadow-sm flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white">
+            <FaClock />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-blue-700 uppercase">La actividad se cierra</p>
+            <p className="text-sm font-bold text-blue-900">
+              {endDateLabel || "Define inicio y duración para calcular el cierre"}
             </p>
           </div>
-        </section>
+        </div>
 
         {/* 💬 CONTENIDO */}
         <TextAreaInput
@@ -350,9 +267,7 @@ export default function QuestionForm({
         {/* PAUTA + PUBLICAR (igual que en código 1) */}
         <div className="flex justify-center gap-4 pt-4">
           {guidelineId ? (
-            <ButtonPrimary onClick={handleDownloadPDF}>
-              📄 Descargar pauta
-            </ButtonPrimary>
+            <ButtonPrimary onClick={handleDownloadPDF}>📄 Descargar pauta</ButtonPrimary>
           ) : (
             <Link
               to={`/teacher-profile/course-view/${courseId}/question/${questionId}/create-guideline`}
@@ -376,18 +291,7 @@ export default function QuestionForm({
               <ButtonPrimary>Cancelar</ButtonPrimary>
             </Link>
 
-            <ButtonPrimary
-              onClick={handleSave}
-              className="
-                bg-gradient-to-r from-indigo-500 to-blue-500
-                text-white
-                hover:from-indigo-600 hover:to-blue-600
-                px-4 py-2 rounded-xl text-sm shadow-md
-                transition-colors
-              "
-            >
-              Guardar Pregunta
-            </ButtonPrimary>
+            <ButtonPrimary onClick={handleSave}>Guardar Pregunta</ButtonPrimary>
           </div>
         )}
       </div>
