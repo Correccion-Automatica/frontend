@@ -1,3 +1,4 @@
+// src/components/QuestionForm.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { FaClock, FaHourglassHalf, FaPlay } from "react-icons/fa";
@@ -48,15 +49,18 @@ export default function QuestionForm({
   setDueDate,
   content,
   setContent,
-  mode = "view",
+  mode = "view", // "view" | "create"
   userCredits = 1000000,
   pautaCost = 1000,
   isPublishedInitial = false,
+  onSave,          // 👈 función que viene del padre para modo "create"
+  loading = false, // 👈 estado de carga desde el padre (solo create)
 }) {
   const { courseId, questionId } = useParams();
   const navigate = useNavigate();
 
-  const [isEditing, setIsEditing] = useState(mode === "create");
+  const isCreateMode = mode === "create";
+  const [isEditing, setIsEditing] = useState(isCreateMode);
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [guidelineId, setGuidelineId] = useState(null);
   const [isPublished, setIsPublished] = useState(isPublishedInitial);
@@ -65,10 +69,14 @@ export default function QuestionForm({
   const readOnly = !isEditing;
   const endDateLabel = getEndDateLabel(dueDate, days, hours, minutes);
 
+  const safeOnSave = onSave || (() => Promise.resolve());
+
   /* --------------------------------------------------------
-   * 1) Buscar guideline
+   * 1) Buscar guideline (solo tiene sentido si ya existe la pregunta)
    * -------------------------------------------------------- */
   useEffect(() => {
+    if (!questionId || isCreateMode) return;
+
     const fetchGuidelines = async () => {
       try {
         const res = await api.get("/guidelines");
@@ -85,7 +93,7 @@ export default function QuestionForm({
     };
 
     fetchGuidelines();
-  }, [questionId]);
+  }, [questionId, isCreateMode]);
 
   /* --------------------------------------------------------
    * 2) Descargar PDF
@@ -113,9 +121,11 @@ export default function QuestionForm({
   };
 
   /* --------------------------------------------------------
-   * 3) Publicar / Despublicar
+   * 3) Publicar / Despublicar (solo cuando ya existe la pregunta)
    * -------------------------------------------------------- */
   const handleTogglePublish = async () => {
+    if (!questionId) return; // seguridad extra
+
     try {
       const newStatus = !isPublished;
 
@@ -137,10 +147,12 @@ export default function QuestionForm({
   };
 
   /* --------------------------------------------------------
-   * 4) PATCH guardar pregunta
+   * 4) PATCH guardar pregunta (solo para modo edición)
    *    (solo cambiamos el cálculo del endDatetime)
    * -------------------------------------------------------- */
-  const handleSave = async () => {
+  const handleUpdateQuestion = async () => {
+    if (!questionId) return;
+
     try {
       const durationSeconds =
         (Number(days) || 0) * 24 * 3600 +
@@ -163,7 +175,7 @@ export default function QuestionForm({
         endDatetime: endDatetime, // 👈 ahora es derivada, no el dueDate directo
       };
 
-      // Si NO hay guideline → permitir editar todo (igual que antes)
+      // Si NO hay guideline → permitir editar todo
       if (!guidelineId) {
         body.title = title;
         body.content = content;
@@ -182,7 +194,7 @@ export default function QuestionForm({
 
   return (
     <div className="mt-6 px-4 space-y-8 relative">
-      {/* ✏️ EDITAR */}
+      {/* ✏️ EDITAR (solo en modo view) */}
       {mode === "view" && !isEditing && (
         <div className="absolute top-[-20px] right-[30px]">
           <ButtonPrimary
@@ -201,18 +213,22 @@ export default function QuestionForm({
 
       {/* 🎉 Banner guardar pregunta */}
       {showSuccessBanner && (
-        <div className="max-w-3xl mx-auto mt-2 text-center p-3 rounded-xl 
+        <div
+          className="max-w-3xl mx-auto mt-2 text-center p-3 rounded-xl 
                         bg-green-100 text-green-700 border border-green-300 
-                        font-medium animate-fade-in">
+                        font-medium animate-fade-in"
+        >
           🎉 Pregunta guardada correctamente
         </div>
       )}
 
       {/* 🔔 Banner publicar / despublicar */}
       {publishMessage && (
-        <div className="max-w-3xl mx-auto mt-2 text-center p-3 rounded-xl 
+        <div
+          className="max-w-3xl mx-auto mt-2 text-center p-3 rounded-xl 
                         bg-blue-100 text-blue-700 border border-blue-300 
-                        font-medium animate-fade-in">
+                        font-medium animate-fade-in"
+        >
           {publishMessage}
         </div>
       )}
@@ -232,14 +248,15 @@ export default function QuestionForm({
           readOnly={readOnly || guidelineId} // igual que en código 1
         />
 
-        {/* 🕒 PLAZO DE LA ACTIVIDAD (tiempo + estilos del código 2) */}
+        {/* 🕒 PLAZO DE LA ACTIVIDAD */}
         <section className="space-y-5">
           <header className="space-y-1 text-center md:text-left">
             <h2 className="text-base md:text-lg font-semibold text-[var(--color-text)]">
               Plazo de la actividad
             </h2>
             <p className="text-xs text-[var(--color-muted)]">
-              Define desde cuándo estará disponible y cuánto tiempo podrán responder.
+              Define desde cuándo estará disponible y cuánto tiempo podrán
+              responder.
             </p>
           </header>
 
@@ -269,9 +286,9 @@ export default function QuestionForm({
                 <p className="text-sm text-[var(--color-muted)]">
                   {dueDate
                     ? new Date(dueDate).toLocaleString("es-CL", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })
                     : "No definido"}
                 </p>
               )}
@@ -318,16 +335,16 @@ export default function QuestionForm({
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-white shadow-md">
                 <FaClock className="text-lg" />
               </div>
-              <div>
-                <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-blue-700">
-                  La actividad se cierra
-                </p>
-                <p className="text-sm md:text-base font-bold text-blue-900">
-                  {endDateLabel
-                    ? endDateLabel
-                    : "Completa el inicio y el tiempo para ver la hora de cierre"}
-                </p>
-              </div>
+            </div>
+            <div>
+              <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-blue-700">
+                La actividad se cierra
+              </p>
+              <p className="text-sm md:text-base font-bold text-blue-900">
+                {endDateLabel
+                  ? endDateLabel
+                  : "Completa el inicio y el tiempo para ver la hora de cierre"}
+              </p>
             </div>
 
             <p className="text-[0.7rem] sm:text-xs text-blue-800/80 max-w-sm">
@@ -347,27 +364,43 @@ export default function QuestionForm({
           readOnly={readOnly || guidelineId}
         />
 
-        {/* PAUTA + PUBLICAR (igual que en código 1) */}
-        <div className="flex justify-center gap-4 pt-4">
-          {guidelineId ? (
-            <ButtonPrimary onClick={handleDownloadPDF}>
-              📄 Descargar pauta
-            </ButtonPrimary>
-          ) : (
-            <Link
-              to={`/teacher-profile/course-view/${courseId}/question/${questionId}/create-guideline`}
-            >
-              <ButtonPrimary>⚙️ Generar pauta</ButtonPrimary>
-            </Link>
-          )}
+        {/* PAUTA + PUBLICAR (solo si NO estamos creando) */}
+        {!isCreateMode && (
+          <div className="flex justify-center gap-4 pt-4">
 
-          <ButtonPrimary
-            onClick={handleTogglePublish}
-            className={`${isPublished ? "bg-red-600 hover:bg-red-700" : ""}`}
-          >
-            {isPublished ? "📤 Despublicar" : "📢 Publicar"}
-          </ButtonPrimary>
-        </div>
+            {/* Si NO hay pauta → GENEAR PAUTA */}
+            {!guidelineId && (
+              <Link
+                to={`/teacher-profile/course-view/${courseId}/question/${questionId}/create-guideline`}
+              >
+                <ButtonPrimary>⚙️ Generar pauta</ButtonPrimary>
+              </Link>
+            )}
+
+            {/* Si hay pauta → DESCARGAR PAUTA */}
+            {guidelineId && (
+              <ButtonPrimary onClick={handleDownloadPDF}>
+                📄 Descargar pauta
+              </ButtonPrimary>
+            )}
+
+            {/* PUBLICAR (deshabilitado si NO hay pauta) */}
+            <ButtonPrimary
+              onClick={handleTogglePublish}
+              disabled={!guidelineId}
+              title={
+                !guidelineId
+                  ? "Debes generar la pauta antes de poder publicar esta pregunta."
+                  : ""
+              }
+              className={`${isPublished ? "bg-red-600 hover:bg-red-700" : ""} ${!guidelineId ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+            >
+              {isPublished ? "📤 Despublicar" : "📢 Publicar"}
+            </ButtonPrimary>
+
+          </div>
+        )}
 
         {/* GUARDAR */}
         {!readOnly && (
@@ -377,7 +410,8 @@ export default function QuestionForm({
             </Link>
 
             <ButtonPrimary
-              onClick={handleSave}
+              onClick={isCreateMode ? safeOnSave : handleUpdateQuestion}
+              disabled={loading}
               className="
                 bg-gradient-to-r from-indigo-500 to-blue-500
                 text-white
@@ -386,7 +420,7 @@ export default function QuestionForm({
                 transition-colors
               "
             >
-              Guardar Pregunta
+              {loading ? "Guardando..." : "Guardar Pregunta"}
             </ButtonPrimary>
           </div>
         )}
