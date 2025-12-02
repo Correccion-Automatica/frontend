@@ -132,7 +132,7 @@ export default function QuestionDetail() {
       const latestAnswer = studentAnswerRef.current;
 
       await api.post("/answers/submit", {
-        students_answer: latestAnswer || "(sin respuesta)",
+        studentsAnswer: latestAnswer || "(sin respuesta)",
         questionId: question.id,
       });
 
