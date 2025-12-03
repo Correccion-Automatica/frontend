@@ -1,7 +1,7 @@
 // src/pages/teacher-profile/create-question/index.jsx
 import React, { useState } from "react";
 import { useParams } from "react-router-dom";
-import QuestionForm from "../../../../components/QuestionForm";
+import QuestionForm from "../../../../components/CreateQuestionForm";
 import CreditOptionDisplay from "../../../../components/CreditOptionDisplay";
 import PageHeader from "../../../../components/PageHeader";
 import { api } from "../../../../lib/axios";
