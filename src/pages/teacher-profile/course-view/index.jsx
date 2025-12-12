@@ -89,6 +89,7 @@ export default function TeacherCourseView() {
               data={questions}
               basePath={`/teacher-profile/course-view/${courseId}/question`}
               onDeleted={handleQuestionDeleted}
+              backTo={`/teacher-profile/course-view/${courseId}`}
             />
           ) : (
             <p className="text-center text-[var(--color-muted)]">

@@ -10,6 +10,7 @@ export default function TableSimpleInCardTeacher({
   data,
   basePath,
   onDeleted,
+  backTo,
 }) {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -65,6 +66,7 @@ export default function TableSimpleInCardTeacher({
           <Link
             key={row.id}
             to={`${basePath}/${row.id}`}
+            state={backTo ? { backTo } : undefined}
             className="flex items-center p-5 rounded-xl
                        bg-[var(--color-surface)] text-[var(--color-text)]
                        border border-[var(--color-border)]
