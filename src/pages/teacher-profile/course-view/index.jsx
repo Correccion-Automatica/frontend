@@ -25,6 +25,8 @@ export default function TeacherCourseView() {
     { header: "Fecha de entrega", accessor: "dueDate" },
     { header: "Estado", accessor: "status" },
     { header: "Respuestas", accessor: "answers" },
+    // ✅ NUEVA COLUMNA
+    { header: "Estado recorrecciones", accessor: "recorrectionsStatus" },
   ];
 
   const handleQuestionDeleted = (id) => {
@@ -35,17 +37,58 @@ export default function TeacherCourseView() {
     const fetchQuestions = async () => {
       try {
         setLoading(true);
-        const res = await api.get(`/questions/${courseId}`);
 
-        const formatted = res.data.map((q) => ({
-          id: q.id,
-          title: q.title || "Sin título",
-          dueDate: q.endDatetime
-            ? new Date(q.endDatetime).toLocaleDateString("es-CL")
-            : "Sin fecha",
-          status: q.isPublished ? "PUBLICADA" : "BORRADOR",
-          answers: `${q.numAnswers || 0}/${q.numStudents || 0}`,
-        }));
+        // 1) Traer preguntas del curso
+        const res = await api.get(`/questions/${courseId}`);
+        const courseQuestions = res.data || [];
+
+        // 2) Traer answers/all para mapear answerId -> questionId
+        const answersRes = await api.get("/answers/all");
+        const allAnswers = answersRes.data || [];
+
+        const answerIdToQuestionId = new Map();
+        for (const a of allAnswers) {
+          if (a?.id == null || a?.questionId == null) continue;
+          answerIdToQuestionId.set(Number(a.id), Number(a.questionId));
+        }
+
+        // 3) Traer recorrections y detectar cuáles están pendientes (newGrade === null)
+        const recRes = await api.get("/recorrection");
+        const recs = recRes.data || [];
+
+        const questionsWithPendingRecorrections = new Set();
+        for (const r of recs) {
+          // Pendiente = tiene answerId y newGrade null
+          if (!r?.answerId) continue;
+          if (r.newGrade !== null && r.newGrade !== undefined) continue;
+
+          const qId = answerIdToQuestionId.get(Number(r.answerId));
+          if (qId != null) {
+            questionsWithPendingRecorrections.add(Number(qId));
+          }
+        }
+
+        // 4) Formatear preguntas + estado recorrecciones con tooltip
+        const formatted = courseQuestions.map((q) => {
+          const hasPending = questionsWithPendingRecorrections.has(Number(q.id));
+
+          return {
+            id: q.id,
+            title: q.title || "Sin título",
+            dueDate: q.endDatetime
+              ? new Date(q.endDatetime).toLocaleDateString("es-CL")
+              : "Sin fecha",
+            status: q.isPublished ? "PUBLICADA" : "BORRADOR",
+            answers: `${q.numAnswers || 0}/${q.numStudents || 0}`,
+
+            // ✅ NUEVO CAMPO: ícono + tooltip (title)
+            recorrectionsStatus: hasPending ? (
+              <span title="Tienes recorrecciones pendientes">❗</span>
+            ) : (
+              <span title="Sin recorrecciones pendientes">✅</span>
+            ),
+          };
+        });
 
         setQuestions(formatted);
       } catch (err) {
@@ -61,7 +104,6 @@ export default function TeacherCourseView() {
 
   return (
     <div className="mt-6 px-4 space-y-6">
-
       <PageHeader
         columns={[
           courseName
@@ -71,7 +113,6 @@ export default function TeacherCourseView() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-
         <div className="lg:col-span-1">
           <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
         </div>
@@ -103,7 +144,6 @@ export default function TeacherCourseView() {
             </Link>
           </div>
         </div>
-
       </div>
     </div>
   );

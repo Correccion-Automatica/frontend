@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+// src/pages/teacher-profile/course-view/[...]/question/[...]/answers/index.jsx
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import PageHeader from "../../../../../components/PageHeader";
 import CreditOptionDisplay from "../../../../../components/CreditOptionDisplay";
@@ -14,46 +15,83 @@ export default function AnswersView() {
   const [usersMap, setUsersMap] = useState({});
   const [guidelineId, setGuidelineId] = useState(null);
 
+  // ✅ Recorrections: map por answerId
+  const [recorrectionByAnswerId, setRecorrectionByAnswerId] = useState({});
+
+  // ✅ Form de recorrección por answerId
+  const [recorrectionForm, setRecorrectionForm] = useState({}); // { [answerId]: { newGrade: "", teachersFeedback: "" } }
+  const [savingRecorrection, setSavingRecorrection] = useState({}); // { [answerId]: boolean }
+  const [recorrectionMsg, setRecorrectionMsg] = useState({}); // { [answerId]: string }
+
   const [loading, setLoading] = useState(true);
   const [correctingAll, setCorrectingAll] = useState(false);
   const [error, setError] = useState(null);
 
   /* ---------------------------------------------------------
-   * 1) Cargar pregunta + pauta + answers + usuarios
+   * 1) Cargar pregunta + pauta + answers + usuarios + recorrections
    * --------------------------------------------------------- */
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
 
-        // ---- Preguntas ----
+        // ---- Pregunta ----
         const res = await api.get(`/questions/${courseId}`);
-        const found = res.data.find((q) => q.id === Number(questionId));
+        const found = (res.data || []).find((q) => q.id === Number(questionId));
         if (!found) {
           setError("No se encontró la pregunta solicitada.");
           return;
         }
         setQuestion(found);
 
-        // ---- Guidelines ----
+        // ---- Guideline ----
         const gl = await api.get("/guidelines");
-        const gFound = gl.data.find(
+        const gFound = (gl.data || []).find(
           (g) => Number(g.questionId) === Number(questionId)
         );
         if (gFound) setGuidelineId(gFound.id);
 
-        // ---- Answers ----
+        // ---- Answers (teacher) ----
         const ans = await api.get(`/answers/${questionId}/teacher`);
-        setAnswers(ans.data || []);
+        const answersData = ans.data || [];
+        setAnswers(answersData);
 
-        // ---- Usuarios (para nombres) ----
+        // ---- Usuarios ----
         const users = await api.get("/users/all");
         const map = {};
-        users.data.forEach((u) => {
+        (users.data || []).forEach((u) => {
           map[u.id] = u.fullName;
         });
         setUsersMap(map);
 
+        // ---- Recorrections ----
+        // GET http://localhost:3002/api/recorrection
+        const rec = await api.get("/recorrection");
+        const recs = rec.data || [];
+
+        // Mapear por answerId (si viene duplicado, tomamos el último por id)
+        const recMap = {};
+        for (const r of recs) {
+          if (!r?.answerId) continue;
+          const key = Number(r.answerId);
+          if (!recMap[key] || Number(r.id) > Number(recMap[key].id)) {
+            recMap[key] = r;
+          }
+        }
+        setRecorrectionByAnswerId(recMap);
+
+        // Inicializar formulario (solo para recorrecciones pendientes)
+        const formInit = {};
+        for (const a of answersData) {
+          const r = recMap[Number(a.id)];
+          if (r && r.newGrade === null) {
+            formInit[Number(a.id)] = {
+              newGrade: "",
+              teachersFeedback: "",
+            };
+          }
+        }
+        setRecorrectionForm(formInit);
       } catch (err) {
         console.error("❌ Error:", err);
         setError("Error al cargar la información.");
@@ -81,7 +119,7 @@ export default function AnswersView() {
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Pauta - ${question.title}.pdf`;
+      a.download = `Pauta - ${question?.title || "Pregunta"}.pdf`;
       a.click();
 
       window.URL.revokeObjectURL(url);
@@ -91,7 +129,7 @@ export default function AnswersView() {
   };
 
   /* ---------------------------------------------------------
-   * 3) Corregir TODAS las respuestas
+   * 3) Corregir TODAS las respuestas (auto)
    * --------------------------------------------------------- */
   const handleCorrectAll = async () => {
     try {
@@ -105,7 +143,8 @@ export default function AnswersView() {
         });
       }
 
-      alert("✔ Todas las respuestas fueron corregidas.");
+      alert("✔ Todas las respuestas fueron enviadas a corrección.");
+      // Nota: si quieres refrescar notas/feedback al terminar, puedes re-fetch de /answers/:questionId/teacher
     } catch (err) {
       console.error("❌ Error corrigiendo:", err);
       alert("Hubo un error corrigiendo las respuestas.");
@@ -117,35 +156,133 @@ export default function AnswersView() {
   /* ---------------------------------------------------------
    * 4) Promedio de notas
    * --------------------------------------------------------- */
-  const gradedAnswers = answers.filter((a) => a.grade !== null);
-  const avgGrade =
-    gradedAnswers.length > 0
-      ? (gradedAnswers.reduce((sum, a) => sum + a.grade, 0) / gradedAnswers.length).toFixed(1)
-      : "__";
+  const gradedAnswers = useMemo(
+    () => answers.filter((a) => a.grade !== null && a.grade !== undefined),
+    [answers]
+  );
 
-  const allGraded = answers.length > 0 && gradedAnswers.length === answers.length;
+  const avgGrade = useMemo(() => {
+    if (gradedAnswers.length === 0) return "__";
+    const sum = gradedAnswers.reduce((acc, a) => acc + Number(a.grade || 0), 0);
+    return (sum / gradedAnswers.length).toFixed(1);
+  }, [gradedAnswers]);
+
+  const allGraded = useMemo(() => {
+    if (answers.length === 0) return false;
+    return gradedAnswers.length === answers.length;
+  }, [answers.length, gradedAnswers.length]);
+
+  /* ---------------------------------------------------------
+   * 5) Recorrecciones pendientes
+   * --------------------------------------------------------- */
+  const isRecorrectionPending = (answerId) => {
+    const r = recorrectionByAnswerId[Number(answerId)];
+    return Boolean(r && r.answerId && r.newGrade === null);
+  };
+
+  const handleRecorrectionInput = (answerId, field, value) => {
+    const key = Number(answerId);
+    setRecorrectionForm((prev) => ({
+      ...prev,
+      [key]: {
+        ...(prev[key] || { newGrade: "", teachersFeedback: "" }),
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleSubmitRecorrection = async (answerId) => {
+    const key = Number(answerId);
+    const r = recorrectionByAnswerId[key];
+    if (!r?.id) return;
+
+    const payload = recorrectionForm[key] || {};
+    const newGradeRaw = payload.newGrade;
+    const teachersFeedback = (payload.teachersFeedback || "").trim();
+
+    const newGradeNum = Number(newGradeRaw);
+
+    // ✅ Validaciones obligatorias
+    if (!Number.isFinite(newGradeNum)) {
+      setRecorrectionMsg((prev) => ({
+        ...prev,
+        [key]: "Debes ingresar un nuevo puntaje válido.",
+      }));
+      return;
+    }
+    if (teachersFeedback.length === 0) {
+      setRecorrectionMsg((prev) => ({
+        ...prev,
+        [key]: "Debes ingresar comentarios de recorrección.",
+      }));
+      return;
+    }
+
+    try {
+      setSavingRecorrection((prev) => ({ ...prev, [key]: true }));
+      setRecorrectionMsg((prev) => ({ ...prev, [key]: "" }));
+
+      // PATCH http://localhost:3002/api/recorrection/recorrection_id
+      await api.patch(`/recorrection/${r.id}`, {
+        teachersFeedback,
+        newGrade: newGradeNum,
+      });
+
+      // ✅ actualizar recorrection local
+      setRecorrectionByAnswerId((prev) => ({
+        ...prev,
+        [key]: {
+          ...prev[key],
+          teachersFeedback,
+          newGrade: newGradeNum,
+        },
+      }));
+
+      // ✅ (opcional pero útil) actualizar nota visible en la respuesta
+      setAnswers((prev) =>
+        prev.map((a) =>
+          Number(a.id) === key ? { ...a, grade: newGradeNum } : a
+        )
+      );
+
+      setRecorrectionMsg((prev) => ({
+        ...prev,
+        [key]: "✅ Recorrección realizada correctamente.",
+      }));
+    } catch (err) {
+      console.error("❌ Error realizando recorrección:", err);
+      setRecorrectionMsg((prev) => ({
+        ...prev,
+        [key]: "❌ Error al realizar la recorrección.",
+      }));
+    } finally {
+      setSavingRecorrection((prev) => ({ ...prev, [key]: false }));
+    }
+  };
 
   /* ---------------------------------------------------------
    * Render
    * --------------------------------------------------------- */
-  if (loading)
-    return <p className="text-center mt-10 text-[var(--color-muted)]">Cargando...</p>;
+  if (loading) {
+    return (
+      <p className="text-center mt-10 text-[var(--color-muted)]">Cargando...</p>
+    );
+  }
 
-  if (error)
+  if (error) {
     return <p className="text-center mt-10 text-red-500">{error}</p>;
+  }
 
   return (
     <div className="mt-6 px-4 space-y-6">
       <PageHeader columns={[`Preguntas profesor curso ${courseId}`]} />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-
         <div className="lg:col-span-1">
           <CreditOptionDisplay userName="Carolina" credits={50} />
         </div>
 
         <div className="lg:col-span-3 space-y-4">
-
           {/* Header */}
           <div className="flex items-center justify-between bg-[var(--color-surface)] p-4 rounded-xl shadow-sm border border-[var(--color-border)]">
             <BackButton to={`/teacher-profile/course-view/${courseId}`} />
@@ -158,9 +295,10 @@ export default function AnswersView() {
           </div>
 
           {/* CARD PRINCIPAL */}
-          <div className="max-w-2xl mx-auto p-8 rounded-3xl 
-                          bg-[var(--color-surface)] border border-[var(--color-border)] 
-                          shadow-md text-center"
+          <div
+            className="max-w-2xl mx-auto p-8 rounded-3xl 
+                       bg-[var(--color-surface)] border border-[var(--color-border)] 
+                       shadow-md text-center"
           >
             <h2 className="text-xl font-bold mb-2">
               Pregunta {question?.title || "-"}
@@ -182,9 +320,11 @@ export default function AnswersView() {
                   : "—"}
               </span>
 
-              <span className={`font-semibold ${
-                question?.isPublished ? "text-green-600" : "text-red-500"
-              }`}>
+              <span
+                className={`font-semibold ${
+                  question?.isPublished ? "text-green-600" : "text-red-500"
+                }`}
+              >
                 {question?.isPublished ? "PUBLICADA" : "NO PUBLICADA"}
               </span>
             </div>
@@ -196,7 +336,9 @@ export default function AnswersView() {
                   📄 Descargar pauta
                 </ButtonPrimary>
               ) : (
-                <span className="text-[var(--color-muted)]">No hay pauta generada</span>
+                <span className="text-[var(--color-muted)]">
+                  No hay pauta generada
+                </span>
               )}
             </div>
 
@@ -207,13 +349,14 @@ export default function AnswersView() {
               </p>
               <p>
                 Respuestas:{" "}
-                <strong>{answers.length}/{question?.numStudents || 88}</strong>
+                <strong>
+                  {answers.length}/{question?.numStudents || 88}
+                </strong>
               </p>
             </div>
 
             {/* BOTONES */}
             <div className="flex flex-col sm:flex-row justify-center gap-4 mt-4">
-
               {allGraded ? (
                 <div className="px-4 py-2 bg-green-200 text-green-800 rounded-xl font-semibold">
                   ✓ Todas las respuestas fueron corregidas
@@ -226,68 +369,185 @@ export default function AnswersView() {
             </div>
           </div>
 
-    {/* LISTA DE RESPUESTAS */}
-    <div className="max-w-2xl mx-auto space-y-4 mt-10">
-      
-      <h2 className="text-xl font-bold mb-2">
-              Todas las respuestas
-      </h2>
-      {answers.map((ans) => {
-        const name = usersMap[ans.userId] || `Alumno #${ans.userId}`;
+          {/* LISTA DE RESPUESTAS */}
+          <div className="max-w-2xl mx-auto space-y-4 mt-10">
+            <h2 className="text-xl font-bold mb-2">Todas las respuestas</h2>
 
-        return (
-          <details
-            key={ans.id}
-            className="border border-[var(--color-border)] rounded-xl p-4 bg-[var(--color-background)]"
-          >
-            <summary className="cursor-pointer font-semibold">
+            {answers.map((ans) => {
+              const name = usersMap[ans.userId] || `Alumno #${ans.userId}`;
+              const pending = isRecorrectionPending(ans.id);
+              const r = recorrectionByAnswerId[Number(ans.id)];
+              const msg = recorrectionMsg[Number(ans.id)];
+              const form = recorrectionForm[Number(ans.id)] || {
+                newGrade: "",
+                teachersFeedback: "",
+              };
+              const saving = Boolean(savingRecorrection[Number(ans.id)]);
 
-              {name}
+              // ✅ ÚNICO CAMBIO: si hay recorrección con newGrade != null, mostrar ese valor como nota
+              const gradeToShow =
+                r && r.newGrade !== null && r.newGrade !== undefined
+                  ? r.newGrade
+                  : ans.grade;
 
-              {ans.grade !== null && (
-                <span className="ml-2 text-[var(--color-primary)]">
-                  — Nota: <strong>{ans.grade.toFixed(1)}</strong>
-                </span>
-              )}
-            </summary>
+              return (
+                <details
+                  key={ans.id}
+                  className="border border-[var(--color-border)] rounded-xl p-4 bg-[var(--color-background)]"
+                >
+                  <summary className="cursor-pointer font-semibold">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2">
+                        <span>{name}</span>
 
-            {/* SUB-SECCIONES */}
-            <div className="mt-4 space-y-4">
+                        {gradeToShow !== null && gradeToShow !== undefined && (
+                          <span className="text-[var(--color-primary)]">
+                            — Nota: <strong>{Number(gradeToShow).toFixed(1)}</strong>
+                          </span>
+                        )}
+                      </div>
 
-              {/* RESPUESTA */}
-              <details className="border rounded-lg p-3 bg-[var(--color-surface)]">
-                <summary className="cursor-pointer font-medium text-sm">
-                  📘 Respuesta del estudiante
-                </summary>
+                      {/* 🔴 Recorrección pendiente */}
+                      {pending && (
+                        <span className="inline-flex items-center gap-2 text-red-500 font-semibold text-sm">
+                          <span className="text-lg">❗</span>
+                          Recorrección pendiente
+                        </span>
+                      )}
+                    </div>
+                  </summary>
 
-                <p className="mt-3 p-3 text-sm whitespace-pre-line bg-[var(--color-background)] border rounded-lg">
-                  {ans.content}
-                </p>
-              </details>
+                  {/* SUB-SECCIONES */}
+                  <div className="mt-4 space-y-4">
+                    {/* RESPUESTA */}
+                    <details className="border rounded-lg p-3 bg-[var(--color-surface)]">
+                      <summary className="cursor-pointer font-medium text-sm">
+                        📘 Respuesta del estudiante
+                      </summary>
 
-              {/* FEEDBACK */}
-              <details className="border rounded-lg p-3 bg-[var(--color-surface)]">
-                <summary className="cursor-pointer font-medium text-sm">
-                  📝 Feedback del profesor
-                </summary>
+                      <p className="mt-3 p-3 text-sm whitespace-pre-line bg-[var(--color-background)] border rounded-lg">
+                        {ans.content}
+                      </p>
+                    </details>
 
-                <p className="mt-3 p-3 text-sm whitespace-pre-line bg-[var(--color-background)] border rounded-lg">
-                  {ans.assistantFeedback || "Sin feedback aún."}
-                </p>
-              </details>
+                    {/* FEEDBACK */}
+                    <details className="border rounded-lg p-3 bg-[var(--color-surface)]">
+                      <summary className="cursor-pointer font-medium text-sm">
+                        📝 Feedback del profesor
+                      </summary>
 
-            </div>
-          </details>
-        );
-      })}
+                      <p className="mt-3 p-3 text-sm whitespace-pre-line bg-[var(--color-background)] border rounded-lg">
+                        {ans.assistantFeedback || "Sin feedback aún."}
+                      </p>
+                    </details>
 
-      {answers.length === 0 && (
-        <p className="text-center text-[var(--color-muted)]">
-          No hay respuestas aún.
-        </p>
-      )}
-    </div>
+                    {/* RECORRECCIÓN */}
+                    <details className="border rounded-lg p-3 bg-[var(--color-surface)]">
+                      <summary className="cursor-pointer font-medium text-sm">
+                        🔁 Recorrección
+                      </summary>
 
+                      <div className="mt-3 space-y-3">
+                        {/* Si NO hay recorrección asociada */}
+                        {!r?.id || !r?.answerId ? (
+                          <div className="p-3 text-sm bg-[var(--color-background)] border rounded-lg text-[var(--color-muted)]">
+                            No hay recorrecciones pendientes
+                          </div>
+                        ) : (
+                          <>
+                            {/* Motivo/content del alumno */}
+                            <div className="p-3 text-sm bg-[var(--color-background)] border rounded-lg">
+                              <p className="font-semibold mb-1">Solicitud del estudiante:</p>
+                              <p className="whitespace-pre-line">
+                                {r.content || "(sin contenido)"}
+                              </p>
+                            </div>
+
+                            {/* Si está pendiente (newGrade null) -> inputs obligatorios */}
+                            {r.newGrade === null ? (
+                              <>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div className="text-left">
+                                    <label className="block text-sm font-semibold mb-1">
+                                      Nuevo puntaje <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                      type="number"
+                                      step="0.1"
+                                      value={form.newGrade}
+                                      onChange={(e) =>
+                                        handleRecorrectionInput(ans.id, "newGrade", e.target.value)
+                                      }
+                                      className="w-full p-2 rounded-lg border bg-[var(--color-background)]"
+                                      placeholder="Ej: 8.0"
+                                      required
+                                    />
+                                  </div>
+
+                                  <div className="text-left">
+                                    <label className="block text-sm font-semibold mb-1">
+                                      Comentarios de recorrección <span className="text-red-500">*</span>
+                                    </label>
+                                    <textarea
+                                      value={form.teachersFeedback}
+                                      onChange={(e) =>
+                                        handleRecorrectionInput(
+                                          ans.id,
+                                          "teachersFeedback",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="w-full p-2 rounded-lg border bg-[var(--color-background)] min-h-[80px]"
+                                      placeholder="Explica la decisión..."
+                                      required
+                                    />
+                                  </div>
+                                </div>
+
+                                {msg && (
+                                  <div className="text-sm font-medium">
+                                    {msg}
+                                  </div>
+                                )}
+
+                                <div className="flex justify-end">
+                                  <ButtonPrimary
+                                    onClick={() => handleSubmitRecorrection(ans.id)}
+                                    disabled={saving}
+                                  >
+                                    {saving ? "Guardando..." : "Realizar Recorrección"}
+                                  </ButtonPrimary>
+                                </div>
+                              </>
+                            ) : (
+                              // Si ya fue resuelta (newGrade no null) -> mostrar resultado
+                              <div className="p-3 text-sm bg-[var(--color-background)] border rounded-lg">
+                                <p className="font-semibold mb-1">Resultado de recorrección:</p>
+                                <p className="mb-2">
+                                  <strong>Nuevo puntaje:</strong>{" "}
+                                  {r.newGrade !== null ? Number(r.newGrade).toFixed(1) : "—"}
+                                </p>
+                                <p className="font-semibold mb-1">Comentarios:</p>
+                                <p className="whitespace-pre-line">
+                                  {r.teachersFeedback || "Esperando respuesta"}
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </details>
+                  </div>
+                </details>
+              );
+            })}
+
+            {answers.length === 0 && (
+              <p className="text-center text-[var(--color-muted)]">
+                No hay respuestas aún.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>
