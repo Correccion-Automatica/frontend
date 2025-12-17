@@ -399,20 +399,15 @@ export default function QuestionForm({
           readOnly={readOnly || guidelineId}
         />
 
-        {/* PAUTA + PUBLICAR (igual que en código 1) */}
+        {/* PAUTA + PUBLICAR (igual que en c�digo 1) */}
         <div className="flex justify-center gap-4 pt-4 ">
           {guidelineId ? (
             <ButtonPrimary onClick={handleDownloadPDF} className="bg-slate-600 hover:bg-slate-700">
-              📄 Descargar pauta
+              ?? Descargar pauta
             </ButtonPrimary>
           ) : (
-            <Link
-              to={`/teacher-profile/course-view/${courseId}/question/${questionId}/create-guideline`}
-            >
-            <Link
-              to={`/teacher-profile/course-view/${courseId}/question/${questionId}/create-guideline`}
-            >
-              <ButtonPrimary>⚙️ Generar pauta</ButtonPrimary>
+            <Link to={`/teacher-profile/course-view/${courseId}/question/${questionId}/create-guideline`}>
+              <ButtonPrimary>?? Generar pauta</ButtonPrimary>
             </Link>
           )}
 
@@ -420,7 +415,7 @@ export default function QuestionForm({
             onClick={handleTogglePublish}
             className={`${isPublished ? "bg-red-600 hover:bg-red-700" : ""}`}
           >
-            {isPublished ? "📤 Despublicar" : "📢 Publicar"}
+            {isPublished ? "?? Despublicar" : "?? Publicar"}
           </ButtonPrimary>
         </div>
       </div>
