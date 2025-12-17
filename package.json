@@ -17,6 +17,7 @@
     "@fullcalendar/react": "^6.1.19",
     "@fullcalendar/timegrid": "^6.1.19",
     "@gsap/react": "^2.1.2",
+    "@mercadopago/sdk-react": "^1.0.6",
     "@tailwindcss/vite": "^4.1.11",
     "axios": "^1.11.0",
     "clsx": "^2.1.1",
