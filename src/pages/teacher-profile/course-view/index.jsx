@@ -22,11 +22,10 @@ export default function TeacherCourseView() {
 
   const columns = [
     { header: "Título", accessor: "title" },
-    { header: "Fecha de entrega", accessor: "dueDate" },
+    { header: "Entrega", accessor: "dueDate" },
     { header: "Estado", accessor: "status" },
     { header: "Respuestas", accessor: "answers" },
-    // ✅ NUEVA COLUMNA
-    { header: "Estado recorrecciones", accessor: "recorrectionsStatus" },
+    { header: "Recorrecciones", accessor: "recorrectionsStatus" },
   ];
 
   const handleQuestionDeleted = (id) => {
@@ -38,11 +37,11 @@ export default function TeacherCourseView() {
       try {
         setLoading(true);
 
-        // 1) Traer preguntas del curso
+        // 1) Preguntas del curso
         const res = await api.get(`/questions/${courseId}`);
         const courseQuestions = res.data || [];
 
-        // 2) Traer answers/all para mapear answerId -> questionId
+        // 2) answers/all para mapear answerId -> questionId
         const answersRes = await api.get("/answers/all");
         const allAnswers = answersRes.data || [];
 
@@ -52,40 +51,55 @@ export default function TeacherCourseView() {
           answerIdToQuestionId.set(Number(a.id), Number(a.questionId));
         }
 
-        // 3) Traer recorrections y detectar cuáles están pendientes (newGrade === null)
+        // 3) recorrections pendientes (newGrade === null)
         const recRes = await api.get("/recorrection");
         const recs = recRes.data || [];
 
         const questionsWithPendingRecorrections = new Set();
         for (const r of recs) {
-          // Pendiente = tiene answerId y newGrade null
           if (!r?.answerId) continue;
           if (r.newGrade !== null && r.newGrade !== undefined) continue;
 
           const qId = answerIdToQuestionId.get(Number(r.answerId));
-          if (qId != null) {
-            questionsWithPendingRecorrections.add(Number(qId));
-          }
+          if (qId != null) questionsWithPendingRecorrections.add(Number(qId));
         }
 
-        // 4) Formatear preguntas + estado recorrecciones con tooltip
+        // 4) Formateo final (✅ fecha + hora)
         const formatted = courseQuestions.map((q) => {
           const hasPending = questionsWithPendingRecorrections.has(Number(q.id));
 
           return {
             id: q.id,
             title: q.title || "Sin título",
+
+            // ✅ Fecha + hora (siempre)
             dueDate: q.endDatetime
-              ? new Date(q.endDatetime).toLocaleDateString("es-CL")
+              ? new Date(q.endDatetime).toLocaleString("es-CL", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })
               : "Sin fecha",
-            status: q.isPublished ? "PUBLICADA" : "BORRADOR",
+
+            // ✅ raw para ordenar estable (no UI)
+            endDatetimeRaw: q.endDatetime || null,
+
+            status: q.isPublished ? "PUBLICADA" : "SIN PUBLICAR",
             answers: `${q.numAnswers || 0}/${q.numStudents || 0}`,
 
-            // ✅ NUEVO CAMPO: ícono + tooltip (title)
             recorrectionsStatus: hasPending ? (
-              <span title="Tienes recorrecciones pendientes">❗</span>
+              <span
+                title="Tienes recorrecciones pendientes"
+                className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-1 text-[11px] font-semibold"
+              >
+                ❗ Pendiente
+              </span>
             ) : (
-              <span title="Sin recorrecciones pendientes">✅</span>
+              <span
+                title="Sin recorrecciones pendientes"
+                className="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-800 px-2 py-1 text-[11px] font-semibold"
+              >
+                ✅ Ok
+              </span>
             ),
           };
         });
@@ -113,13 +127,22 @@ export default function TeacherCourseView() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1">
+        {/* Sidebar */}
+        <div className="lg:col-span-1 space-y-4">
           <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
+
+          {/* CTA recomendado en sidebar */}
+          <Link to={`/teacher-profile/course-view/${courseId}/create-question`}>
+            <ButtonPrimary className="w-full">
+              ➕ Crear nueva pregunta
+            </ButtonPrimary>
+          </Link>
         </div>
 
+        {/* Main */}
         <div className="lg:col-span-3 space-y-4">
           {loading ? (
-            <p className="text-center text-[var(--color-muted)]">
+            <p className="text-center text-(--color-muted)">
               Cargando preguntas...
             </p>
           ) : error ? (
@@ -133,16 +156,10 @@ export default function TeacherCourseView() {
               backTo={`/teacher-profile/course-view/${courseId}`}
             />
           ) : (
-            <p className="text-center text-[var(--color-muted)]">
+            <p className="text-center text-(--color-muted)">
               No hay preguntas creadas para este curso aún.
             </p>
           )}
-
-          <div className="flex justify-center mt-4">
-            <Link to={`/teacher-profile/course-view/${courseId}/create-question`}>
-              <ButtonPrimary>➕ Crear nueva pregunta</ButtonPrimary>
-            </Link>
-          </div>
         </div>
       </div>
     </div>
