@@ -18,7 +18,7 @@ function getEndDateLabel(startDateIso, days, hours, minutes) {
   const totalMinutes =
     (Number(days) || 0) * 24 * 60 +
     (Number(hours) || 0) * 60 +
-    (Number(minutes) || 0); // 👈 aquí van minutos tal cual
+    (Number(minutes) || 0);
 
   if (totalMinutes <= 0) return null;
 
@@ -43,28 +43,61 @@ export default function QuestionForm({
   setDueDate,
   content,
   setContent,
-  mode = "view",
 
+  mode = "view", // "view" | "create"
+
+  // ✅ Solo usados en create
+  onSave,
+  onCancel,
+  loading = false,
+
+  // ✅ Solo usado en view
   isPublishedInitial = false,
 }) {
   const { courseId, questionId } = useParams();
 
-  const [isEditing, setIsEditing] = useState(mode === "create");
+  const isCreate = mode === "create";
+
+  const [isEditing, setIsEditing] = useState(isCreate);
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [guidelineId, setGuidelineId] = useState(null);
   const [isPublished, setIsPublished] = useState(isPublishedInitial);
   const [publishMessage, setPublishMessage] = useState("");
 
-  // Snapshot de valores originales para poder restaurar al cancelar
+  // Snapshot de valores originales para poder restaurar al cancelar (solo view)
   const [originalValues, setOriginalValues] = useState(null);
 
   const readOnly = !isEditing;
   const endDateLabel = getEndDateLabel(dueDate, days, hours, minutes);
 
+  useEffect(() => {
+    setIsPublished(isPublishedInitial);
+  }, [isPublishedInitial]);
+
+  useEffect(() => {
+    // Solo aplica en VIEW
+    if (isCreate) return;
+
+    // Solo al entrar en edición
+    if (!isEditing) return;
+
+    if (!dueDate) return;
+
+    const parsed = new Date(dueDate);
+    if (Number.isNaN(parsed.getTime())) return;
+
+    if (parsed.getTime() < Date.now()) {
+      setDueDate("");
+    }
+  }, [isEditing, isCreate, dueDate, setDueDate]);
+
+
   /* --------------------------------------------------------
-   * Buscar guideline de la pregunta
+   * Buscar guideline de la pregunta (solo VIEW)
    * -------------------------------------------------------- */
   useEffect(() => {
+    if (isCreate) return;
+
     const fetchGuidelines = async () => {
       try {
         const res = await api.get("/guidelines");
@@ -81,10 +114,11 @@ export default function QuestionForm({
     };
 
     fetchGuidelines();
-  }, [questionId]);
+  }, [questionId, isCreate]);
+  
 
   /* --------------------------------------------------------
-   * Descargar PDF de pauta
+   * Descargar PDF de pauta (solo VIEW)
    * -------------------------------------------------------- */
   const handleDownloadPDF = async () => {
     if (!guidelineId) return;
@@ -109,7 +143,7 @@ export default function QuestionForm({
   };
 
   /* --------------------------------------------------------
-   * Publicar / Despublicar
+   * Publicar / Despublicar (solo VIEW)
    * -------------------------------------------------------- */
   const handleTogglePublish = async () => {
     try {
@@ -134,7 +168,7 @@ export default function QuestionForm({
   };
 
   /* --------------------------------------------------------
-   * Entrar en modo edición
+   * Entrar en modo edición (solo VIEW)
    * -------------------------------------------------------- */
   const handleStartEditing = () => {
     setOriginalValues({
@@ -149,9 +183,9 @@ export default function QuestionForm({
   };
 
   /* --------------------------------------------------------
-   * Cancelar edición (sin navegación)
+   * Cancelar edición (solo VIEW)
    * -------------------------------------------------------- */
-  const handleCancel = () => {
+  const handleCancelEdit = () => {
     if (originalValues) {
       setTitle(originalValues.title);
       setDays(originalValues.days);
@@ -164,10 +198,23 @@ export default function QuestionForm({
   };
 
   /* --------------------------------------------------------
-   * Guardar pregunta (PATCH)
+   * Guardar pregunta (PATCH) (solo VIEW)
    * -------------------------------------------------------- */
-  const handleSave = async () => {
+  const handleSaveEdit = async () => {
     try {
+      if (!dueDate) {
+        alert("Debes definir una fecha y hora de inicio válidas.");
+        return;
+      }
+      const chosen = new Date(dueDate);
+      if (Number.isNaN(chosen.getTime())) {
+        alert("La fecha ingresada no es válida.");
+        return;
+      }
+      if (chosen.getTime() < Date.now()) {
+        alert("No puedes configurar una fecha de inicio en el pasado.");
+        return;
+      }
       const durationSeconds =
         (Number(days) || 0) * 24 * 3600 +
         (Number(hours) || 0) * 3600 +
@@ -203,14 +250,14 @@ export default function QuestionForm({
 
   return (
     <div className="mt-6 px-4 space-y-8">
-      {/* BANNERS */}
-      {showSuccessBanner && (
+      {/* BANNERS (solo VIEW) */}
+      {!isCreate && showSuccessBanner && (
         <div className="max-w-5xl mx-auto mt-2 text-center p-3 rounded-xl bg-green-100 text-green-700 border border-green-300 font-medium">
           🎉 Pregunta guardada correctamente
         </div>
       )}
 
-      {publishMessage && (
+      {!isCreate && publishMessage && (
         <div className="max-w-5xl mx-auto mt-2 text-center p-3 rounded-xl bg-blue-100 text-blue-700 border border-blue-300 font-medium">
           {publishMessage}
         </div>
@@ -218,50 +265,28 @@ export default function QuestionForm({
 
       {/* CARD PRINCIPAL */}
       <div className="max-w-5xl mx-auto p-6 md:p-8 pt-8 md:pt-12 rounded-3xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-md space-y-8 relative">
-        {/* BOTONES SUPERIORES
-            - En móvil: en el flujo normal, arriba a la derecha, con margen-bottom
-            - En md+: se posicionan absolutos en la esquina */}
-        <div className="
-          flex justify-end gap-2 sm:gap-3 mb-4
-          md:mb-0 md:absolute md:top-4 md:right-4
-        ">
-          {mode === "view" && !isEditing && (
-            <>
-              <ButtonPrimary
-                onClick={handleStartEditing}
-                className="
-                  bg-gradient-to-r from-indigo-500 to-blue-500
-                  text-white
-                  hover:from-indigo-600 hover:to-blue-600
-                  transition-colors
-                "
-              >
-                ✏️ Editar
-              </ButtonPrimary>
-
-              <Link
-                to={`/teacher-profile/course-view/${courseId}/question/${questionId}/answers`}
-              >
-                <ButtonPrimary className="bg-slate-600 hover:bg-slate-700">
-                  🔍 Ver respuestas
-                </ButtonPrimary>
-              </Link>
-            </>
-          )}
-
-          {isEditing && (
+        {/* BOTONES SUPERIORES */}
+        <div
+          className="
+            flex justify-end gap-2 sm:gap-3 mb-4
+            md:mb-0 md:absolute md:top-4 md:right-4
+          "
+        >
+          {isCreate ? (
             <>
               <ButtonPrimary
                 type="button"
-                onClick={handleCancel}
+                onClick={onCancel}
                 className="bg-gray-200 text-[var(--color-text)] hover:bg-gray-300"
+                disabled={loading}
               >
                 Cancelar
               </ButtonPrimary>
 
               <ButtonPrimary
                 type="button"
-                onClick={handleSave}
+                onClick={onSave}
+                disabled={loading}
                 className="
                   bg-gradient-to-r from-indigo-500 to-blue-500
                   text-white
@@ -270,8 +295,60 @@ export default function QuestionForm({
                   transition-colors
                 "
               >
-                Guardar pregunta
+                {loading ? "Creando..." : "Crear pregunta"}
               </ButtonPrimary>
+            </>
+          ) : (
+            <>
+              {mode === "view" && !isEditing && (
+                <>
+                  <ButtonPrimary
+                    onClick={handleStartEditing}
+                    className="
+                      bg-gradient-to-r from-indigo-500 to-blue-500
+                      text-white
+                      hover:from-indigo-600 hover:to-blue-600
+                      transition-colors
+                    "
+                  >
+                    ✏️ Editar
+                  </ButtonPrimary>
+
+                  <Link
+                    to={`/teacher-profile/course-view/${courseId}/question/${questionId}/answers`}
+                  >
+                    <ButtonPrimary className="bg-slate-600 hover:bg-slate-700">
+                      🔍 Ver respuestas
+                    </ButtonPrimary>
+                  </Link>
+                </>
+              )}
+
+              {isEditing && (
+                <>
+                  <ButtonPrimary
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="bg-gray-200 text-[var(--color-text)] hover:bg-gray-300"
+                  >
+                    Cancelar
+                  </ButtonPrimary>
+
+                  <ButtonPrimary
+                    type="button"
+                    onClick={handleSaveEdit}
+                    className="
+                      bg-gradient-to-r from-indigo-500 to-blue-500
+                      text-white
+                      hover:from-indigo-600 hover:to-blue-600
+                      px-4 py-2 rounded-xl text-sm shadow-md
+                      transition-colors
+                    "
+                  >
+                    Guardar pregunta
+                  </ButtonPrimary>
+                </>
+              )}
             </>
           )}
         </div>
@@ -281,7 +358,7 @@ export default function QuestionForm({
           label="Título de la pregunta"
           value={title}
           onChange={setTitle}
-          readOnly={readOnly || guidelineId}
+          readOnly={readOnly || (!!guidelineId && !isCreate)}
           placeholder="Ej: Caso de estudio sobre posicionamiento de marca"
         />
 
@@ -312,7 +389,8 @@ export default function QuestionForm({
                   type="datetime-local"
                   value={dueDate || ""}
                   onChange={(e) => setDueDate(e.target.value)}
-                  min={new Date().toISOString().slice(0, 16)}
+                  min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                  required={isEditing} 
                   className="w-full rounded-xl border border-[var(--color-border)]
                     bg-[var(--color-background)] px-3 py-2 text-sm 
                     text-[var(--color-text)] outline-none 
@@ -396,18 +474,20 @@ export default function QuestionForm({
           label="Contenido de la pregunta"
           value={content}
           onChange={setContent}
-          readOnly={readOnly || guidelineId}
+          readOnly={readOnly || (!!guidelineId && !isCreate)}
         />
 
-        {/* PAUTA + PUBLICAR (igual que en c�digo 1) */}
+        {/* PAUTA + PUBLICAR */}
         <div className="flex justify-center gap-4 pt-4 ">
           {guidelineId ? (
             <ButtonPrimary onClick={handleDownloadPDF} className="bg-slate-600 hover:bg-slate-700">
-              ?? Descargar pauta
+              📄 Descargar pauta
             </ButtonPrimary>
           ) : (
-            <Link to={`/teacher-profile/course-view/${courseId}/question/${questionId}/create-guideline`}>
-              <ButtonPrimary>?? Generar pauta</ButtonPrimary>
+            <Link
+              to={`/teacher-profile/course-view/${courseId}/question/${questionId}/create-guideline`}
+            >
+              <ButtonPrimary>⚙️ Generar pauta</ButtonPrimary>
             </Link>
           )}
 
@@ -415,7 +495,7 @@ export default function QuestionForm({
             onClick={handleTogglePublish}
             className={`${isPublished ? "bg-red-600 hover:bg-red-700" : ""}`}
           >
-            {isPublished ? "?? Despublicar" : "?? Publicar"}
+            {isPublished ? "📤 Despublicar" : "📢 Publicar"}
           </ButtonPrimary>
         </div>
       </div>

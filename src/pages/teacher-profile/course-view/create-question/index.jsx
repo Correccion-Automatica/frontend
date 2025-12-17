@@ -1,13 +1,18 @@
-// src/pages/teacher-profile/create-question/index.jsx
 import React, { useState } from "react";
-import { useParams } from "react-router-dom";
-import QuestionForm from "../../../../components/CreateQuestionForm";
+import { useNavigate, useParams } from "react-router-dom";
+import QuestionForm from "../../../../components/QuestionForm";
 import CreditOptionDisplay from "../../../../components/CreditOptionDisplay";
 import PageHeader from "../../../../components/PageHeader";
 import { api } from "../../../../lib/axios";
+import { useAuth } from "../../../../context/AuthProvider";
 
 export default function CreateQuestion() {
   const { courseId } = useParams();
+  const navigate = useNavigate();
+
+  const { user } = useAuth();
+  const sidebarCredits = Number(user?.remaining_credits ?? user?.credits ?? 0);
+  const sidebarName = user?.fullName || user?.name || "Usuario";
 
   const [title, setTitle] = useState("");
   const [days, setDays] = useState(0);
@@ -17,7 +22,7 @@ export default function CreateQuestion() {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 🧩 Lógica para guardar (POST al backend) —> retorna el objeto creado (con id)
+  // 🧩 Lógica POST intacta
   const handleSave = async () => {
     try {
       setLoading(true);
@@ -29,17 +34,24 @@ export default function CreateQuestion() {
         alert("Por favor completa el título y el contenido de la pregunta.");
         return null;
       }
+      if (!dueDate) {
+        alert("Debes definir una fecha y hora de inicio para la pregunta.");
+        return null;
+      }
+      if (totalDurationSeconds <= 0) {
+        alert("Debes definir una duración mayor a 0.");
+        return null;
+      }
 
       const body = {
         title,
         courseId: Number(courseId),
-        content, // si tu backend espera objeto, pásalo como { text: content }
+        content,
         duration: totalDurationSeconds || null,
         endDatetime: dueDate ? new Date(dueDate).toISOString() : null,
       };
 
       const res = await api.post("/questions", body);
-      // 🔙 devolvemos TODO (incluye res.data.id)
       return res.data;
     } catch (err) {
       console.error("❌ Error al crear la pregunta:", err);
@@ -50,17 +62,25 @@ export default function CreateQuestion() {
     }
   };
 
+  const handleCreate = async () => {
+    const created = await handleSave();
+    if (!created?.id) return;
+    navigate(`/teacher-profile/course-view/${courseId}/question/${created.id}`, { state: { backTo: `/teacher-profile/course-view/${courseId}` }, replace: true, });
+  };
+
+  const handleCancel = () => {
+    navigate(`/teacher-profile/course-view/${courseId}`);
+  };
+
   return (
     <div className="mt-6 px-4 space-y-6">
       <PageHeader columns={["Crear Pregunta"]} />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Panel lateral */}
         <div className="lg:col-span-1">
-          <CreditOptionDisplay userName="Carolina" credits={2500} />
+          <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
         </div>
 
-        {/* Formulario principal */}
         <div className="lg:col-span-3">
           <QuestionForm
             mode="create"
@@ -76,7 +96,8 @@ export default function CreateQuestion() {
             setDueDate={setDueDate}
             content={content}
             setContent={setContent}
-            onSave={handleSave}
+            onSave={handleCreate}
+            onCancel={handleCancel}
             loading={loading}
           />
         </div>
@@ -84,4 +105,3 @@ export default function CreateQuestion() {
     </div>
   );
 }
-  

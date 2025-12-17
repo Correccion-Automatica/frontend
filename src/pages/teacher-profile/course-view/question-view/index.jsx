@@ -5,9 +5,15 @@ import QuestionForm from "../../../../components/QuestionForm";
 import CreditOptionDisplay from "../../../../components/CreditOptionDisplay";
 import PageHeader from "../../../../components/PageHeader";
 import { api } from "../../../../lib/axios";
+import { useAuth } from "../../../../context/AuthProvider";
+
 
 export default function QuestionView() {
   const { courseId, questionId } = useParams();
+
+    const { user } = useAuth();
+    const sidebarCredits = Number(user?.remaining_credits ?? user?.credits ?? 0);
+    const sidebarName = user?.fullName || user?.name || "Usuario";
 
   // Estados de la pregunta
   const [title, setTitle] = useState("");
@@ -113,7 +119,7 @@ export default function QuestionView() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Panel lateral */}
         <div className="lg:col-span-1">
-          <CreditOptionDisplay userName="Carolina" credits={2500} />
+          <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
         </div>
 
         {/* Formulario principal */}
@@ -133,8 +139,6 @@ export default function QuestionView() {
             content={content}
             setContent={setContent}
             onSave={handleSave}
-
-            // ⭐ Lo importante:
             isPublishedInitial={isPublished}
           />
         </div>

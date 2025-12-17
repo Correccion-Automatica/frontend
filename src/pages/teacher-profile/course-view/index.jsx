@@ -22,9 +22,10 @@ export default function TeacherCourseView() {
 
   const columns = [
     { header: "Título", accessor: "title" },
-    { header: "Fecha de entrega", accessor: "dueDate" },
+    { header: "Entrega", accessor: "dueDate" },
     { header: "Estado", accessor: "status" },
     { header: "Respuestas", accessor: "answers" },
+    { header: "Recorrecciones", accessor: "recorrectionsStatus" },
   ];
 
   const handleQuestionDeleted = (id) => {
@@ -35,17 +36,73 @@ export default function TeacherCourseView() {
     const fetchQuestions = async () => {
       try {
         setLoading(true);
-        const res = await api.get(`/questions/${courseId}`);
 
-        const formatted = res.data.map((q) => ({
-          id: q.id,
-          title: q.title || "Sin título",
-          dueDate: q.endDatetime
-            ? new Date(q.endDatetime).toLocaleDateString("es-CL")
-            : "Sin fecha",
-          status: q.isPublished ? "PUBLICADA" : "BORRADOR",
-          answers: `${q.numAnswers || 0}/${q.numStudents || 0}`,
-        }));
+        // 1) Preguntas del curso
+        const res = await api.get(`/questions/${courseId}`);
+        const courseQuestions = res.data || [];
+
+        // 2) answers/all para mapear answerId -> questionId
+        const answersRes = await api.get("/answers/all");
+        const allAnswers = answersRes.data || [];
+
+        const answerIdToQuestionId = new Map();
+        for (const a of allAnswers) {
+          if (a?.id == null || a?.questionId == null) continue;
+          answerIdToQuestionId.set(Number(a.id), Number(a.questionId));
+        }
+
+        // 3) recorrections pendientes (newGrade === null)
+        const recRes = await api.get("/recorrection");
+        const recs = recRes.data || [];
+
+        const questionsWithPendingRecorrections = new Set();
+        for (const r of recs) {
+          if (!r?.answerId) continue;
+          if (r.newGrade !== null && r.newGrade !== undefined) continue;
+
+          const qId = answerIdToQuestionId.get(Number(r.answerId));
+          if (qId != null) questionsWithPendingRecorrections.add(Number(qId));
+        }
+
+        // 4) Formateo final (✅ fecha + hora)
+        const formatted = courseQuestions.map((q) => {
+          const hasPending = questionsWithPendingRecorrections.has(Number(q.id));
+
+          return {
+            id: q.id,
+            title: q.title || "Sin título",
+
+            // ✅ Fecha + hora (siempre)
+            dueDate: q.endDatetime
+              ? new Date(q.endDatetime).toLocaleString("es-CL", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })
+              : "Sin fecha",
+
+            // ✅ raw para ordenar estable (no UI)
+            endDatetimeRaw: q.endDatetime || null,
+
+            status: q.isPublished ? "PUBLICADA" : "SIN PUBLICAR",
+            answers: `${q.numAnswers || 0}/${q.numStudents || 0}`,
+
+            recorrectionsStatus: hasPending ? (
+              <span
+                title="Tienes recorrecciones pendientes"
+                className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-1 text-[11px] font-semibold"
+              >
+                ❗ Pendiente
+              </span>
+            ) : (
+              <span
+                title="Sin recorrecciones pendientes"
+                className="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-800 px-2 py-1 text-[11px] font-semibold"
+              >
+                ✅ Ok
+              </span>
+            ),
+          };
+        });
 
         setQuestions(formatted);
       } catch (err) {
@@ -61,7 +118,6 @@ export default function TeacherCourseView() {
 
   return (
     <div className="mt-6 px-4 space-y-6">
-
       <PageHeader
         columns={[
           courseName
@@ -71,14 +127,22 @@ export default function TeacherCourseView() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-
-        <div className="lg:col-span-1">
+        {/* Sidebar */}
+        <div className="lg:col-span-1 space-y-4">
           <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
+
+          {/* CTA recomendado en sidebar */}
+          <Link to={`/teacher-profile/course-view/${courseId}/create-question`}>
+            <ButtonPrimary className="w-full">
+              ➕ Crear nueva pregunta
+            </ButtonPrimary>
+          </Link>
         </div>
 
+        {/* Main */}
         <div className="lg:col-span-3 space-y-4">
           {loading ? (
-            <p className="text-center text-[var(--color-muted)]">
+            <p className="text-center text-(--color-muted)">
               Cargando preguntas...
             </p>
           ) : error ? (
@@ -89,20 +153,14 @@ export default function TeacherCourseView() {
               data={questions}
               basePath={`/teacher-profile/course-view/${courseId}/question`}
               onDeleted={handleQuestionDeleted}
+              backTo={`/teacher-profile/course-view/${courseId}`}
             />
           ) : (
-            <p className="text-center text-[var(--color-muted)]">
+            <p className="text-center text-(--color-muted)">
               No hay preguntas creadas para este curso aún.
             </p>
           )}
-
-          <div className="flex justify-center mt-4">
-            <Link to={`/teacher-profile/course-view/${courseId}/create-question`}>
-              <ButtonPrimary>➕ Crear nueva pregunta</ButtonPrimary>
-            </Link>
-          </div>
         </div>
-
       </div>
     </div>
   );
