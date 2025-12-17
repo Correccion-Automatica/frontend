@@ -6,9 +6,15 @@ import PageHeader from "../../../../../components/PageHeader";
 import ButtonPrimary from "../../../../../components/ButtonPrimary";
 import CreditOptionDisplay from "../../../../../components/CreditOptionDisplay";
 import { api } from "../../../../../lib/axios";
+import { useAuth } from "../../../../../context/AuthProvider";
+
 
 export default function CreateGuideline() {
   const { courseId, questionId } = useParams();
+
+  const { user } = useAuth();
+  const sidebarCredits = Number(user?.remaining_credits ?? user?.credits ?? 0);
+  const sidebarName = user?.fullName || user?.name || "Usuario";
 
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState("intro"); // intro | loading | ready | editing | done
@@ -19,8 +25,7 @@ export default function CreateGuideline() {
   const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   // créditos del usuario (mock)
-  const userName = "Carolina";
-  const credits = 8000;
+
   const minCreditsForEdit = 2000;
 
   /** ------------------------------------------------------------------
@@ -192,7 +197,7 @@ export default function CreateGuideline() {
         
         {/* Panel lateral créditos */}
         <div className="md:col-span-1">
-          <CreditOptionDisplay userName={userName} credits={credits} />
+          <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
         </div>
 
         {/* CONTENIDO PRINCIPAL */}
@@ -235,7 +240,7 @@ export default function CreateGuideline() {
                   onConfirm={handleConfirm}
                   onEdit={handleEdit}
                   cost={250}
-                  canEdit={credits >= minCreditsForEdit}
+                  canEdit={sidebarCredits >= minCreditsForEdit}
                 />
               )}
             </div>

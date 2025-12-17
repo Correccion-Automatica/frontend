@@ -4,10 +4,15 @@ import QuestionForm from "../../../../components/QuestionForm";
 import CreditOptionDisplay from "../../../../components/CreditOptionDisplay";
 import PageHeader from "../../../../components/PageHeader";
 import { api } from "../../../../lib/axios";
+import { useAuth } from "../../../../context/AuthProvider";
 
 export default function CreateQuestion() {
   const { courseId } = useParams();
   const navigate = useNavigate();
+
+  const { user } = useAuth();
+  const sidebarCredits = Number(user?.remaining_credits ?? user?.credits ?? 0);
+  const sidebarName = user?.fullName || user?.name || "Usuario";
 
   const [title, setTitle] = useState("");
   const [days, setDays] = useState(0);
@@ -60,7 +65,7 @@ export default function CreateQuestion() {
   const handleCreate = async () => {
     const created = await handleSave();
     if (!created?.id) return;
-    navigate(`/teacher-profile/course-view/${courseId}/question/${created.id}`, {state: { backTo: `/teacher-profile/course-view/${courseId}` }, replace: true,});
+    navigate(`/teacher-profile/course-view/${courseId}/question/${created.id}`, { state: { backTo: `/teacher-profile/course-view/${courseId}` }, replace: true, });
   };
 
   const handleCancel = () => {
@@ -73,7 +78,7 @@ export default function CreateQuestion() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1">
-          <CreditOptionDisplay userName="Carolina" credits={2500} />
+          <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
         </div>
 
         <div className="lg:col-span-3">
