@@ -26,7 +26,7 @@ export default function CreateGuideline() {
 
   // créditos del usuario (mock)
 
-  const minCreditsForEdit = 2000;
+  const minCreditsForEdit = 110;
 
   /** ------------------------------------------------------------------
    *  1) CARGAR LA PREGUNTA
