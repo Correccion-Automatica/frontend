@@ -44,6 +44,7 @@ export default function AnswersView() {
     const loadData = async () => {
       try {
         setLoading(true);
+        setError(null);
 
         // ---- Pregunta ----
         const res = await api.get(`/questions/${courseId}`);
@@ -82,8 +83,17 @@ export default function AnswersView() {
         setUsersMap(map);
 
         // ---- Recorrections ----
-        const rec = await api.get("/recorrection");
-        const recs = rec.data || [];
+        // ✅ Si el backend responde 404 cuando no hay recorrecciones,
+        // lo tratamos como lista vacía y NO como error.
+        let recs = [];
+        try {
+          const rec = await api.get("/recorrection");
+          recs = rec.data || [];
+        } catch (err) {
+          const status = err?.response?.status;
+          if (status === 404) recs = [];
+          else throw err;
+        }
 
         // Mapear por answerId (si viene duplicado, tomamos el último por id)
         const recMap = {};
@@ -204,7 +214,6 @@ export default function AnswersView() {
     return Boolean(r && r.answerId && r.newGrade === null);
   };
 
-
   /* ---------------------------------------------------------
    * 5) Recorrección handlers
    * --------------------------------------------------------- */
@@ -265,9 +274,7 @@ export default function AnswersView() {
 
       // ✅ actualizar nota visible en la respuesta
       setAnswers((prev) =>
-        prev.map((a) =>
-          Number(a.id) === key ? { ...a, grade: newGradeNum } : a
-        )
+        prev.map((a) => (Number(a.id) === key ? { ...a, grade: newGradeNum } : a))
       );
 
       setRecorrectionMsg((prev) => ({
@@ -300,9 +307,7 @@ export default function AnswersView() {
 
         // Si hay recorrección resuelta, esa nota manda
         const gradeToShow =
-          r && r.newGrade !== null && r.newGrade !== undefined
-            ? r.newGrade
-            : ans.grade;
+          r && r.newGrade !== null && r.newGrade !== undefined ? r.newGrade : ans.grade;
 
         const gradeLabel =
           gradeToShow === null || gradeToShow === undefined
@@ -434,7 +439,6 @@ export default function AnswersView() {
                     <th className="p-3 font-semibold w-[15%]">Nota</th>
                     <th className="p-3 font-semibold w-[35%] text-right">Estado</th>
                   </tr>
-
                 </thead>
 
                 <tbody>
@@ -446,9 +450,7 @@ export default function AnswersView() {
                         key={r.id}
                         onClick={() => setSelectedAnswerId(Number(r.id))}
                         className={`cursor-pointer border-b border-(--color-border)
-                          ${isSelected
-                            ? "bg-green-50"
-                            : "hover:bg-(--color-background)"
+                          ${isSelected ? "bg-green-50" : "hover:bg-(--color-background)"
                           }`}
                       >
                         <td className="p-3 min-w-0">
@@ -492,11 +494,8 @@ export default function AnswersView() {
             <div className="p-4 border-t border-(--color-border) flex flex-col gap-2">
               <div className="text-xs text-(--color-muted)">
                 Mostrando{" "}
-                <span className="font-semibold">{total === 0 ? 0 : startIdx + 1}</span>
-                –
-                <span className="font-semibold">
-                  {Math.min(total, startIdx + pageSize)}
-                </span>{" "}
+                <span className="font-semibold">{total === 0 ? 0 : startIdx + 1}</span>–
+                <span className="font-semibold">{Math.min(total, startIdx + pageSize)}</span>{" "}
                 de <span className="font-semibold">{total}</span>
               </div>
 
@@ -588,6 +587,7 @@ export default function AnswersView() {
             </div>
 
             {/* Acciones */}
+            {/* Acciones */}
             <div className="bg-(--color-surface) border border-(--color-border) rounded-2xl shadow-sm p-6">
               <h2 className="text-base font-semibold">Acciones</h2>
               <p className="text-sm text-(--color-muted) mt-1">
@@ -605,7 +605,12 @@ export default function AnswersView() {
                   </div>
                 )}
 
-                {allGraded ? (
+                {/* ⬇️ AQUÍ VA EL CAMBIO */}
+                {answers.length === 0 ? (
+                  <div className="w-full rounded-xl border border-(--color-border) bg-(--color-background) p-3 text-sm text-(--color-muted) text-center">
+                    No hay respuestas a corregir
+                  </div>
+                ) : allGraded ? (
                   <div className="w-full rounded-xl bg-green-50 text-green-800 border border-green-200 p-3 text-sm font-semibold text-center">
                     ✓ Todas corregidas
                   </div>
@@ -620,6 +625,7 @@ export default function AnswersView() {
                 )}
               </div>
             </div>
+
           </div>
 
           {/* Detalle */}
@@ -721,8 +727,8 @@ export default function AnswersView() {
                                 </label>
                                 <textarea
                                   value={
-                                    recorrectionForm[Number(selectedAnswer.id)]?.teachersFeedback ??
-                                    ""
+                                    recorrectionForm[Number(selectedAnswer.id)]
+                                      ?.teachersFeedback ?? ""
                                   }
                                   onChange={(e) =>
                                     handleRecorrectionInput(
@@ -745,8 +751,12 @@ export default function AnswersView() {
 
                             <div className="flex justify-end">
                               <ButtonPrimary
-                                onClick={() => handleSubmitRecorrection(selectedAnswer.id)}
-                                disabled={Boolean(savingRecorrection[Number(selectedAnswer.id)])}
+                                onClick={() =>
+                                  handleSubmitRecorrection(selectedAnswer.id)
+                                }
+                                disabled={Boolean(
+                                  savingRecorrection[Number(selectedAnswer.id)]
+                                )}
                               >
                                 {savingRecorrection[Number(selectedAnswer.id)]
                                   ? "Guardando..."

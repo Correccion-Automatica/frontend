@@ -36,10 +36,17 @@ export default function TeacherCourseView() {
     const fetchQuestions = async () => {
       try {
         setLoading(true);
+        setError(null);
 
         // 1) Preguntas del curso
         const res = await api.get(`/questions/${courseId}`);
         const courseQuestions = res.data || [];
+
+        // ✅ Si no hay preguntas, no llamamos answers ni recorrections
+        if (courseQuestions.length === 0) {
+          setQuestions([]);
+          return;
+        }
 
         // 2) answers/all para mapear answerId -> questionId
         const answersRes = await api.get("/answers/all");
@@ -52,8 +59,16 @@ export default function TeacherCourseView() {
         }
 
         // 3) recorrections pendientes (newGrade === null)
-        const recRes = await api.get("/recorrection");
-        const recs = recRes.data || [];
+        let recs = [];
+        try {
+          const recRes = await api.get("/recorrection");
+          recs = recRes.data || [];
+        } catch (err) {
+          const status = err?.response?.status;
+          // ✅ 404 = no hay recorrecciones, lo tratamos como vacío
+          if (status === 404) recs = [];
+          else throw err;
+        }
 
         const questionsWithPendingRecorrections = new Set();
         for (const r of recs) {
@@ -72,7 +87,6 @@ export default function TeacherCourseView() {
             id: q.id,
             title: q.title || "Sin título",
 
-            // ✅ Fecha + hora (siempre)
             dueDate: q.endDatetime
               ? new Date(q.endDatetime).toLocaleString("es-CL", {
                   dateStyle: "medium",
@@ -80,7 +94,6 @@ export default function TeacherCourseView() {
                 })
               : "Sin fecha",
 
-            // ✅ raw para ordenar estable (no UI)
             endDatetimeRaw: q.endDatetime || null,
 
             status: q.isPublished ? "PUBLICADA" : "SIN PUBLICAR",
@@ -133,18 +146,14 @@ export default function TeacherCourseView() {
 
           {/* CTA recomendado en sidebar */}
           <Link to={`/teacher-profile/course-view/${courseId}/create-question`}>
-            <ButtonPrimary className="w-full">
-              ➕ Crear nueva pregunta
-            </ButtonPrimary>
+            <ButtonPrimary className="w-full">➕ Crear nueva pregunta</ButtonPrimary>
           </Link>
         </div>
 
         {/* Main */}
         <div className="lg:col-span-3 space-y-4">
           {loading ? (
-            <p className="text-center text-(--color-muted)">
-              Cargando preguntas...
-            </p>
+            <p className="text-center text-(--color-muted)">Cargando preguntas...</p>
           ) : error ? (
             <p className="text-center text-red-500">{error}</p>
           ) : questions.length > 0 ? (
