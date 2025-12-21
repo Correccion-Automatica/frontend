@@ -43,6 +43,9 @@ export default function QuestionForm({
   setDueDate,
   content,
   setContent,
+  pseudoGuideline = "",
+  setPseudoGuideline = () => {},
+  onEditingChange = () => {},
 
   mode = "view", // "view" | "create"
 
@@ -178,8 +181,10 @@ export default function QuestionForm({
       minutes,
       dueDate,
       content,
+      pseudoGuideline,
     });
     setIsEditing(true);
+    onEditingChange(true);
   };
 
   /* --------------------------------------------------------
@@ -193,8 +198,10 @@ export default function QuestionForm({
       setMinutes(originalValues.minutes);
       setDueDate(originalValues.dueDate);
       setContent(originalValues.content);
+      setPseudoGuideline(originalValues.pseudoGuideline ?? "");
     }
     setIsEditing(false);
+    onEditingChange(false);
   };
 
   /* --------------------------------------------------------
@@ -238,11 +245,13 @@ export default function QuestionForm({
         body.title = title;
         body.content = content;
       }
+      body.pseudoGuideline = pseudoGuideline?.trim() ? pseudoGuideline.trim() : null;
 
       await api.patch(`/questions/${questionId}`, body);
 
       setShowSuccessBanner(true);
       setIsEditing(false);
+      onEditingChange(false);
     } catch (err) {
       console.error("❌ Error al actualizar pregunta:", err);
     }
