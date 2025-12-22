@@ -15,6 +15,8 @@ import FacultyPage from "./pages/admin-profile/faculty/index.jsx";
 import AdminCourse from "./pages/admin-profile/faculty/course/index.jsx";
 import TeacherProfileAdmin from "./pages/admin-profile/teacher";
 
+import ACSuperView from "./pages/ac-super-view/index.jsx";
+
 import Howitworks from "./pages/Howitworks";
 import Contact from './pages/Contact.jsx';
 import About from './pages/About.jsx';
@@ -108,6 +110,10 @@ export default function Router() {
               path="/teacher-profile/course-view/:courseId/question/:questionId/create-guideline"
               element={<CreateGuideline />}
             />
+
+          {/*Rutas Super-Admin-AC*/}
+            <Route path="/ac-super-view" element={<ACSuperView/>} />
+
             <Route path="/payments/purchase" element={<Purchase />} />
             <Route path="/payments/checkout/:orderId" element={<Checkout />} />
             <Route path="/payments/history" element={<PaymentsHistoryPage />} />
