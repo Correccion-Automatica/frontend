@@ -24,8 +24,11 @@ export default function ConfirmPopup({
   return (
     <div
       className="
-        fixed inset-0 z-50 flex items-center justify-center
-        bg-black/40 backdrop-blur-sm px-4
+        fixed inset-0 z-9999 flex items-center justify-center
+        bg-black/40 px-4
+        backdrop-blur-sm
+        [backdrop-filter:blur(8px)]
+        [-webkit-backdrop-filter:blur(8px)]
       "
       onClick={handleBackdropClick}
       role="dialog"
