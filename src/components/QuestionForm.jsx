@@ -71,6 +71,7 @@ export default function QuestionForm({
   const [originalValues, setOriginalValues] = useState(null);
 
   const [isGuidelineGenerating, setIsGuidelineGenerating] = useState(false);
+  const [numStudents, setNumStudents] = useState(null);
 
   const [popup, setPopup] = useState({ open: false, title: "", message: "" });
   const openPopup = (t, m) => setPopup({ open: true, title: t, message: m });
@@ -105,6 +106,27 @@ export default function QuestionForm({
       }
     }
   }, [isCreate, questionId]);
+
+  // Obtener numStudents una sola vez cuando se monta (solo en modo view)
+  useEffect(() => {
+    if (isCreate || !courseId || numStudents !== null) return;
+
+    const fetchNumStudents = async () => {
+      try {
+        const response = await api.get("/courses/user/all");
+        const courseFound = (response.data || []).find(
+          (item) => Number(item.course?.id) === Number(courseId)
+        );
+        if (courseFound?.course?.numStudents !== undefined) {
+          setNumStudents(courseFound.course.numStudents);
+        }
+      } catch (err) {
+        console.error("Error obteniendo numStudents:", err);
+      }
+    };
+
+    fetchNumStudents();
+  }, [isCreate, courseId, numStudents]);
 
   useEffect(() => {
     if (isCreate) return;
@@ -435,6 +457,7 @@ export default function QuestionForm({
 
                   <Link
                     to={`/teacher-profile/course-view/${courseId}/question/${questionId}/answers`}
+                    state={{ numStudents }}
                   >
                     <ButtonPrimary className="bg-slate-600 hover:bg-slate-700">
                       🔍 Ver respuestas
