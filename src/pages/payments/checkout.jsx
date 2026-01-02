@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../../lib/axios";
 import { AiOutlineClockCircle, AiOutlineCheckCircle, AiOutlineInfoCircle } from 'react-icons/ai';
 import { useAuth } from '../../context/AuthProvider';
 import { normalizeUser } from '../../lib/normalizeUser';
+import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
 
 export default function Checkout() {
   const { orderId } = useParams();
@@ -12,6 +13,15 @@ export default function Checkout() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const publicKey = useMemo(() => import.meta.env.VITE_MP_PUBLIC_KEY || import.meta.env.MP_PUBLIC_KEY, []);
+
+  useEffect(() => {
+    if (publicKey) {
+      initMercadoPago(publicKey);
+    } else {
+      console.warn('[checkout] Falta VITE_MP_PUBLIC_KEY para renderizar Wallet de Mercado Pago');
+    }
+  }, [publicKey]);
 
   useEffect(() => {
     (async () => {
@@ -78,8 +88,21 @@ export default function Checkout() {
           <div className="flex justify-between py-2"><span>ID externo</span><span className="text-sm text-gray-600">{order.externalId || '-'}</span></div>
 
           {order.mpPreferenceId && (
-            <div className="mt-4">
-              <a className="inline-block text-sm text-blue-600 underline" href={`https://www.mercadopago.cl/checkout/v1/redirect?pref_id=${order.mpPreferenceId}`} target="_blank" rel="noreferrer">Abrir preferencia en Mercado Pago</a>
+            <div className="mt-4 space-y-3">
+              <a
+                className="inline-block text-sm text-blue-600 underline"
+                href={`https://www.mercadopago.cl/checkout/v1/redirect?pref_id=${order.mpPreferenceId}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Abrir preferencia en Mercado Pago
+              </a>
+              {publicKey && order.status !== 'paid' && (
+                <div className="border rounded p-3 bg-gray-50">
+                  <div className="text-sm font-medium mb-2">Pagar ahora con Mercado Pago</div>
+                  <Wallet initialization={{ preferenceId: order.mpPreferenceId }} />
+                </div>
+              )}
             </div>
           )}
 
