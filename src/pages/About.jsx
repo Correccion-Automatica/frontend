@@ -1,4 +1,4 @@
-﻿
+﻿import React from "react";
 
 const principles = [
   { title: "Propósito antes que Producto", desc: "No construimos solo una API: trabajamos por un nuevo paradigma educativo. Cada decisión está guiada por la misión de democratizar la educación y generar impacto positivo." },
@@ -30,11 +30,12 @@ export default function AboutSimple() {
         <div className="absolute -left-10 top-20 w-96 h-96 bg-purple-700/30 blur-3xl" />
         <div className="absolute right-10 bottom-10 w-96 h-96 bg-fuchsia-500/25 blur-3xl" />
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[1200px] h-[1200px] bg-purple-500/10 rounded-full blur-[180px]" />
+        <div className="absolute inset-x-0 bottom-0 h-72 bg-gradient-to-b from-transparent via-[#05030a]/80 to-[#05030a]" />
       </div>
 
       {/* Hero full width */}
       <section className="relative z-10 w-full flex flex-col items-center px-4 pt-12 pb-8">
-        <p className="text-sm tracking-[0.35em] uppercase text-slate-300 mb-6 text-center">Nuestra razón de ser</p>
+        <p className="text-sm tracking-[0.35em] uppercase text-slate-300 mb-6 text-center">NUESTRA RAZÓN DE SER</p>
 
         <div className="relative w-full max-w-6xl min-h-[75vh] flex items-center justify-center">
           {[720, 600, 480].map((size, idx) => (
@@ -54,7 +55,10 @@ export default function AboutSimple() {
           ))}
 
           <div className="relative z-10 flex flex-col items-center text-center gap-4 px-6 max-w-3xl">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white">Democracia en la corrección automática</h1>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight">
+              Democracia en la
+              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-400"> corrección automática</span>
+            </h1>
             <p className="text-slate-200 text-lg md:text-xl">
               Trabajamos por un nuevo paradigma educativo donde la corrección automática es justa, transparente y accesible para todos.
             </p>
@@ -143,10 +147,6 @@ export default function AboutSimple() {
           </a>
         </section>
       </div>
-
-      {/* Extiende el fondo hasta el footer para evitar cortes de color */}
-      {/* Fondo extendido para cubrir el área previa al footer */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#05030a] via-[#0a0820] to-[#05030a]" />
     </div>
   );
 }
