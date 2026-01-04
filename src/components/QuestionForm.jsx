@@ -66,6 +66,8 @@ export default function QuestionForm({
   const [guidelineId, setGuidelineId] = useState(null);
   const [isPublished, setIsPublished] = useState(isPublishedInitial);
   const [publishMessage, setPublishMessage] = useState("");
+  const [publishError, setPublishError] = useState("");
+
 
   // Snapshot de valores originales para poder restaurar al cancelar (solo view)
   const [originalValues, setOriginalValues] = useState(null);
@@ -148,27 +150,38 @@ export default function QuestionForm({
   /* --------------------------------------------------------
    * Publicar / Despublicar (solo VIEW)
    * -------------------------------------------------------- */
-  const handleTogglePublish = async () => {
-    try {
-      const newStatus = !isPublished;
+const handleTogglePublish = async () => {
+  // ❌ Bloqueo UX si no hay pauta
+  if (!guidelineId && !isPublished) {
+    setPublishError(
+      "No puedes publicar esta pregunta porque no tiene una pauta asociada."
+    );
+    return;
+  }
 
-      await api.patch(`/questions/${questionId}`, {
-        isPublished: newStatus,
-      });
+  try {
+    setPublishError(""); // limpia errores previos
 
-      setIsPublished(newStatus);
+    const newStatus = !isPublished;
 
-      setPublishMessage(
-        newStatus
-          ? "Pregunta publicada correctamente."
-          : "Pregunta despublicada correctamente."
-      );
+    await api.patch(`/questions/${questionId}`, {
+      isPublished: newStatus,
+    });
 
-      setTimeout(() => setPublishMessage(""), 4000);
-    } catch (err) {
-      console.error("❌ Error al publicar/despublicar:", err);
-    }
-  };
+    setIsPublished(newStatus);
+
+    setPublishMessage(
+      newStatus
+        ? "Pregunta publicada correctamente."
+        : "Pregunta despublicada correctamente."
+    );
+
+    setTimeout(() => setPublishMessage(""), 4000);
+  } catch (err) {
+    console.error("❌ Error al publicar/despublicar:", err);
+  }
+};
+
 
   /* --------------------------------------------------------
    * Entrar en modo edición (solo VIEW)
@@ -487,31 +500,59 @@ export default function QuestionForm({
         />
 
         {/* PAUTA + PUBLICAR (solo VIEW) */}
-        {!isCreate && (
-          <div className="flex justify-center gap-4 pt-4 ">
-            {guidelineId ? (
-              <ButtonPrimary
-                onClick={handleDownloadPDF}
-                className="bg-slate-600 hover:bg-slate-700"
-              >
-                📄 Descargar pauta
-              </ButtonPrimary>
-            ) : (
-              <Link
-                to={`/teacher-profile/course-view/${courseId}/question/${questionId}/create-guideline`}
-              >
-                <ButtonPrimary>⚙️ Generar pauta</ButtonPrimary>
-              </Link>
-            )}
 
-            <ButtonPrimary
-              onClick={handleTogglePublish}
-              className={`${isPublished ? "bg-red-600 hover:bg-red-700" : ""}`}
-            >
-              {isPublished ? "📤 Despublicar" : "📢 Publicar"}
-            </ButtonPrimary>
+        {!isCreate && (
+          <div className="pt-4">
+            {/* Fila fija: botones */}
+            <div className="flex justify-center gap-4">
+              {guidelineId ? (
+                <ButtonPrimary
+                  onClick={handleDownloadPDF}
+                  className="bg-slate-600 hover:bg-slate-700"
+                >
+                  📄 Descargar pauta
+                </ButtonPrimary>
+              ) : (
+                <Link
+                  to={`/teacher-profile/course-view/${courseId}/question/${questionId}/create-guideline`}
+                >
+                  <ButtonPrimary>⚙️ Generar pauta</ButtonPrimary>
+                </Link>
+              )}
+
+              <ButtonPrimary
+                onClick={handleTogglePublish}
+                className={`${isPublished ? "bg-red-600 hover:bg-red-700" : ""}`}
+              >
+                {isPublished ? "📤 Despublicar" : "📢 Publicar"}
+              </ButtonPrimary>
+            </div>
+
+            {/* Segunda fila: mensaje (no afecta botones) */}
+            {publishError && (
+              <div className="mt-3 flex justify-center">
+                <div
+                  className="
+                    flex items-start gap-2
+                    rounded-xl
+                    border border-red-200
+                    bg-red-50
+                    px-4 py-3
+                    text-sm
+                    text-red-800
+                    shadow-sm
+                    animate-fadeIn
+                    max-w-xl
+                  "
+                >
+                  <span className="mt-[2px] text-lg">⚠️</span>
+                  <p className="leading-5">{publishError}</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
+
       </div>
     </div>
   );
