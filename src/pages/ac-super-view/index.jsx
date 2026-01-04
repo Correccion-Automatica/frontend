@@ -1,6 +1,7 @@
 // src/pages/ac-super-view/index.jsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PageHeader from "../../components/PageHeader";
+import { api } from "../../lib/axios";
 
 const MOCK_TEACHERS = [
   { id: "t1", name: "María Paz Rojas", active: true, creditsAvailableCLP: 120000, creditsUsedThisMonthCLP: 45000 },
@@ -367,151 +368,185 @@ function FinanceChartCard() {
   );
 }
 
+function deriveCreditsFromId(id) {
+  // Placeholder estable para diseño (hasta tener endpoint real)
+  // Genera números “realistas” y consistentes por profesor.
+  const base = (Number(id) || 1) * 17341;
+  const available = (base % 320000) + 5000;
+  const used = (base % 120000);
+  return {
+    creditsAvailableCLP: available,
+    creditsUsedThisMonthCLP: used,
+  };
+}
+
 function TeachersListCard() {
-  const [teachers, setTeachers] = useState(MOCK_TEACHERS);
-  const [query, setQuery] = useState("");
-  const [pageSize, setPageSize] = useState(10);
-  const [selectedId, setSelectedId] = useState(null);
+  const [teachers, setTeachers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [processingId, setProcessingId] = useState(null);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? teachers.filter((t) => t.name.toLowerCase().includes(q)) : teachers;
-  }, [teachers, query]);
+  // ===============================
+  // Fetch profesores
+  // ===============================
+  useEffect(() => {
+    const fetchTeachers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const pageTeachers = useMemo(() => filtered.slice(0, pageSize), [filtered, pageSize]);
+        const res = await api.get("/users/teachers");
 
-  const selectedTeacher = useMemo(
-    () => teachers.find((t) => t.id === selectedId) ?? null,
-    [teachers, selectedId]
-  );
+        const normalized = (res.data || []).map((t) => ({
+          id: t.id,
+          name: t.fullName,
+          email: t.email,
+          isActive: t.isActive,
+          creditsAvailableCLP: Math.floor((t.id * 731) % 150000),
+          creditsUsedThisMonthCLP: Math.floor((t.id * 389) % 80000),
+        }));
 
-  const toggleActive = () => {
-    if (!selectedTeacher) return;
-    setTeachers((prev) =>
-      prev.map((t) => (t.id === selectedTeacher.id ? { ...t, active: !t.active } : t))
-    );
+        setTeachers(normalized);
+      } catch {
+        setError("No se pudieron cargar los profesores.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeachers();
+  }, []);
+
+  // ===============================
+  // Activar / Desactivar profesor
+  // ===============================
+  const handleToggleActive = async (teacher) => {
+    try {
+      setProcessingId(teacher.id);
+
+      if (teacher.isActive) {
+        await api.patch(`/users/deactivateTeacher/${teacher.id}`);
+      } else {
+        await api.patch(`/users/activateTeacher/${teacher.id}`);
+      }
+
+      // ✅ update local inmediato
+      setTeachers((prev) =>
+        prev.map((t) =>
+          t.id === teacher.id
+            ? { ...t, isActive: !teacher.isActive }
+            : t
+        )
+      );
+    } catch {
+      alert("No se pudo actualizar el estado del profesor.");
+    } finally {
+      setProcessingId(null);
+    }
   };
 
-  const assignCredits = () => {
-    if (!selectedTeacher) return;
-    // placeholder
-    // eslint-disable-next-line no-alert
-    alert(`Asignar créditos a: ${selectedTeacher.name}`);
-  };
-
+  // ===============================
+  // Render
+  // ===============================
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-base font-semibold">Profesores</h2>
-          <p className="text-sm text-[var(--color-muted)]">Busca por nombre y selecciona.</p>
-        </div>
+    <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 space-y-4">
+      <h3 className="text-lg font-semibold">Profesores</h3>
 
-        <div className="flex items-center gap-2">
-          <div className="text-xs text-[var(--color-muted)]">Mostrar</div>
-          <select
-            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-          >
-            {[5, 10, 20, 50].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      {loading && (
+        <p className="text-center text-[var(--color-muted)]">
+          Cargando profesores…
+        </p>
+      )}
 
-      <div className="mt-4">
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
-          <input
-            className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--color-muted)]"
-            placeholder="Buscar por nombre..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <span className="text-xs text-[var(--color-muted)]">⌕</span>
-        </div>
-      </div>
+      {error && (
+        <p className="text-center text-red-500">{error}</p>
+      )}
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]">
-        <div className="max-h-[320px] overflow-y-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-[var(--color-surface)]">
-              <tr className="border-b border-[var(--color-border)]">
-                <th className="px-4 py-3 text-xs font-semibold text-[var(--color-muted)]">Nombre</th>
-                <th className="px-4 py-3 text-xs font-semibold text-[var(--color-muted)]">Estado</th>
-              </tr>
-            </thead>
+      {!loading && !error && (
+        <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+          {teachers.map((t) => (
+            <div
+              key={t.id}
+              className="
+                rounded-xl
+                border border-[var(--color-border)]
+                p-4
+                flex flex-col gap-3
+                bg-[var(--color-background)]
+                transition
+                hover:bg-[var(--color-hover)]
+              "
+            >
+              {/* Nombre + estado */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{t.name}</p>
+                  <p className="text-xs text-[var(--color-muted)]">
+                    {t.email}
+                  </p>
+                </div>
 
-            <tbody>
-              {pageTeachers.length === 0 ? (
-                <tr>
-                  <td colSpan={2} className="px-4 py-10 text-center text-sm text-[var(--color-muted)]">
-                    No hay resultados.
-                  </td>
-                </tr>
-              ) : (
-                pageTeachers.map((t) => {
-                  const isSelected = t.id === selectedId;
-                  return (
-                    <tr
-                      key={t.id}
-                      className={[
-                        "cursor-pointer border-b border-[var(--color-border)] last:border-b-0",
-                        isSelected ? "bg-[var(--color-hover-strong)]" : "hover:bg-[var(--color-hover)]",
-                      ].join(" ")}
-                      onClick={() => setSelectedId(t.id)}
-                    >
-                      <td className="px-4 py-3 font-medium">{t.name}</td>
-                      <td className="px-4 py-3">
-                        <Badge active={t.active} />
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                <span
+                  className={`
+                    text-xs font-semibold px-2 py-1 rounded-full
+                    ${
+                      t.isActive
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }
+                  `}
+                >
+                  {t.isActive ? "Activo" : "Inactivo"}
+                </span>
+              </div>
 
-      {selectedTeacher ? (
-        <>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-              <div className="text-xs text-[var(--color-muted)]">Créditos disponibles</div>
-              <div className="text-base font-semibold">${formatCLP(selectedTeacher.creditsAvailableCLP)} CLP</div>
+              {/* Créditos (solo si está seleccionado luego; por ahora siempre visibles) */}
+              <div className="flex justify-between text-xs text-[var(--color-muted)]">
+                <span>Créditos disponibles: ${t.creditsAvailableCLP.toLocaleString("es-CL")}</span>
+                <span>Usados este mes: ${t.creditsUsedThisMonthCLP.toLocaleString("es-CL")}</span>
+              </div>
+
+              {/* Acciones */}
+              <div className="flex gap-2">
+                <button
+                  disabled={processingId === t.id}
+                  onClick={() => handleToggleActive(t)}
+                  className={`
+                    flex-1 px-3 py-2 rounded-lg text-sm font-semibold
+                    transition
+                    ${
+                      t.isActive
+                        ? "bg-red-500 text-white hover:bg-red-600"
+                        : "bg-green-500 text-white hover:bg-green-600"
+                    }
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  `}
+                >
+                  {processingId === t.id
+                    ? "Procesando…"
+                    : t.isActive
+                    ? "Desactivar"
+                    : "Activar"}
+                </button>
+
+                <button
+                  className="
+                    flex-1 px-3 py-2 rounded-lg text-sm font-semibold
+                    bg-[var(--color-primary)]
+                    text-[var(--color-onprimary)]
+                    hover:opacity-90
+                  "
+                >
+                  Asignar Créditos
+                </button>
+              </div>
             </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-              <div className="text-xs text-[var(--color-muted)]">Créditos usados este mes</div>
-              <div className="text-base font-semibold">${formatCLP(selectedTeacher.creditsUsedThisMonthCLP)} CLP</div>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <SmallButton onClick={toggleActive} variant="default">
-              {selectedTeacher.active ? "Desactivar" : "Activar"}
-            </SmallButton>
-            <SmallButton onClick={assignCredits} variant="primary">
-              Asignar Créditos
-            </SmallButton>
-          </div>
-
-          <div className="mt-3 text-xs text-[var(--color-muted)]">
-            Seleccionado: <span className="font-semibold text-[var(--color-text)]">{selectedTeacher.name}</span>
-          </div>
-        </>
-      ) : (
-        <div className="mt-4 text-xs text-[var(--color-muted)]">
-          Selecciona un profesor para ver acciones y métricas.
+          ))}
         </div>
       )}
     </div>
   );
 }
-
 function DownloadFinancialReportCard() {
   const [open, setOpen] = useState(false);
   const [from, setFrom] = useState(daysAgoISO(30));
