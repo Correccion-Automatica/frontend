@@ -185,7 +185,7 @@ useEffect(() => {
 
       // ✅ Backend espera students_answer (según tu router)
       const res = await api.post("/answers/submit", {
-        students_answer: latestAnswer || "(sin respuesta)",
+        studentsAnswer: latestAnswer || "(sin respuesta)",
         questionId: question.id,
       });
 
