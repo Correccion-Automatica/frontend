@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import ChatMessage from "../../../../../components/ChatMessage";
 import ChatActions from "../../../../../components/ChatActions";
 import PageHeader from "../../../../../components/PageHeader";
@@ -8,9 +8,9 @@ import CreditOptionDisplay from "../../../../../components/CreditOptionDisplay";
 import { api } from "../../../../../lib/axios";
 import { useAuth } from "../../../../../context/AuthProvider";
 
-
 export default function CreateGuideline() {
   const { courseId, questionId } = useParams();
+  const navigate = useNavigate();
 
   const { user } = useAuth();
   const sidebarCredits = Number(user?.remaining_credits ?? user?.credits ?? 0);
@@ -23,8 +23,6 @@ export default function CreateGuideline() {
   const [fase1ResponseId, setFase1ResponseId] = useState(null);
   const [guidelineId, setGuidelineId] = useState(null);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
-
-  // créditos del usuario (mock)
 
   const minCreditsForEdit = 110;
 
@@ -44,7 +42,6 @@ export default function CreateGuideline() {
     fetchQuestion();
   }, [courseId, questionId]);
 
-
   /** ------------------------------------------------------------------
    *  2) FASE 1 — Se activa al presionar “Comenzar criterio de evaluación”
    * ------------------------------------------------------------------ */
@@ -55,7 +52,7 @@ export default function CreateGuideline() {
 
     try {
       const res = await api.post("/guidelines/fase-1", {
-        content: question.content, // <-- NO MODIFICAR
+        questionId: question.id,
       });
 
       console.log("FASE 1 RESPONSE:", res.data);
@@ -66,7 +63,7 @@ export default function CreateGuideline() {
         {
           id: Date.now(),
           role: "assistant",
-          content: res.data.criteria, // texto del modelo
+          content: res.data.criteria,
         },
       ]);
 
@@ -86,13 +83,22 @@ export default function CreateGuideline() {
     }
   };
 
-
   /** ------------------------------------------------------------------
    *  3) FINISH FASES — Se activa al confirmar criterios
    * ------------------------------------------------------------------ */
   const handleConfirm = async () => {
     if (!fase1ResponseId || !question) return;
 
+    const key = `guideline_generating_${String(questionId)}`;
+    localStorage.setItem(key, "1");
+
+    try {
+      const bc = new BroadcastChannel("guideline-status");
+      bc.postMessage({ type: "guideline_generating", questionId });
+      bc.close();
+    } catch (e) {}
+
+    navigate(-1);
     setStatus("loading");
 
     try {
@@ -104,8 +110,20 @@ export default function CreateGuideline() {
 
       console.log("FINISH FASES RESPONSE:", res.data);
 
-      const newId = res.data.id; // <-- ID de la pauta
+      const newId = res.data.id;
       setGuidelineId(newId);
+
+      localStorage.removeItem(key);
+
+      try {
+        const bc = new BroadcastChannel("guideline-status");
+        bc.postMessage({
+          type: "guideline_created",
+          questionId,
+          guidelineId: newId,
+        });
+        bc.close();
+      } catch (e) {}
 
       setMessages((prev) => [
         ...prev,
@@ -115,11 +133,10 @@ export default function CreateGuideline() {
           content: (
             <div className="space-y-2">
               <p>
-                🎉 Tu pauta fue generada correctamente y cargada al curso.
-                Ahora puedes descargarla en PDF.
+                🎉 Tu pauta fue generada correctamente y cargada al curso. Ahora
+                puedes descargarla en PDF.
               </p>
 
-              {/* Descargar PDF solo cuando se hace click */}
               <ButtonPrimary onClick={() => handleDownloadPDF(newId)}>
                 📄 Descargar Pauta en PDF
               </ButtonPrimary>
@@ -131,6 +148,14 @@ export default function CreateGuideline() {
       setStatus("done");
     } catch (err) {
       console.error("❌ Error en finish-fases:", err);
+
+      localStorage.removeItem(key);
+
+      try {
+        const bc = new BroadcastChannel("guideline-status");
+        bc.postMessage({ type: "guideline_error", questionId });
+        bc.close();
+      } catch (e) {}
 
       setMessages((prev) => [
         ...prev,
@@ -145,9 +170,8 @@ export default function CreateGuideline() {
     }
   };
 
-
   /** ------------------------------------------------------------------
-   *  4) DESCARGAR PDF — GET /guideline/generatePDF/:guidelineId
+   *  4) DESCARGAR PDF — GET /guidelines/generatePDF/:guidelineId
    * ------------------------------------------------------------------ */
   const handleDownloadPDF = async (id) => {
     if (!id) {
@@ -181,12 +205,10 @@ export default function CreateGuideline() {
     }
   };
 
-
   /** ------------------------------------------------------------------
    *  MODO EDICIÓN (dummy)
    * ------------------------------------------------------------------ */
   const handleEdit = () => setStatus("editing");
-
 
   /** ------------------------- RENDER ------------------------------- */
   return (
@@ -194,13 +216,10 @@ export default function CreateGuideline() {
       <PageHeader columns={["Creación de pautas"]} showBack={false} />
 
       <div className="max-w-6xl mx-auto mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-        
-        {/* Panel lateral créditos */}
         <div className="md:col-span-1">
           <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
         </div>
 
-        {/* CONTENIDO PRINCIPAL */}
         <div className="md:col-span-3">
           <div
             className="p-6 rounded-2xl shadow
@@ -208,13 +227,14 @@ export default function CreateGuideline() {
                        border border-[var(--color-border)] 
                        min-h-[300px] flex flex-col space-y-4"
           >
-            {/* Pregunta */}
             {question && (
               <ChatMessage
                 role="assistant"
                 content={
                   <div>
-                    <p className="font-semibold text-lg mb-2">🧩 {question.title}</p>
+                    <p className="font-semibold text-lg mb-2">
+                      🧩 {question.title}
+                    </p>
                     <p className="whitespace-pre-line text-[var(--color-text)]">
                       {typeof question.content === "object"
                         ? question.content.text
@@ -225,7 +245,6 @@ export default function CreateGuideline() {
               />
             )}
 
-            {/* Mensajes */}
             <div className="flex flex-col gap-3 flex-1">
               {status === "loading" && (
                 <ChatMessage role="assistant" muted content="🤔 Generando criterios…" />
@@ -239,13 +258,12 @@ export default function CreateGuideline() {
                 <ChatActions
                   onConfirm={handleConfirm}
                   onEdit={handleEdit}
-                  cost={250}
-                  canEdit={sidebarCredits >= minCreditsForEdit}
+                  cost={minCreditsForEdit}
+                  canEdit={500 >= minCreditsForEdit}
                 />
               )}
             </div>
 
-            {/* Botón inicial */}
             {status === "intro" && (
               <div className="border-t border-[var(--color-border)] pt-4 flex justify-center">
                 <ButtonPrimary
@@ -257,7 +275,6 @@ export default function CreateGuideline() {
               </div>
             )}
 
-            {/* Modo edición */}
             {status === "editing" && (
               <div className="border-t border-[var(--color-border)] pt-4">
                 <form
@@ -297,7 +314,10 @@ export default function CreateGuideline() {
                                  focus:ring-[var(--color-primary)]"
                       rows={2}
                     />
-                    <ButtonPrimary type="submit" className="px-5 py-3 text-sm font-semibold">
+                    <ButtonPrimary
+                      type="submit"
+                      className="px-5 py-3 text-sm font-semibold"
+                    >
                       Enviar
                     </ButtonPrimary>
                   </div>
@@ -306,18 +326,14 @@ export default function CreateGuideline() {
             )}
           </div>
 
-          {/* FINAL */}
           {status === "done" && (
             <div className="flex flex-col items-center mt-6 gap-4">
-
               <ButtonPrimary
                 onClick={() => window.history.back()}
                 disabled={downloadingPDF}
               >
                 {downloadingPDF ? "Descargando…" : "Ir a mi pregunta"}
               </ButtonPrimary>
-
-              {/* Descargar PDF solo si existe guidelineId */}
             </div>
           )}
         </div>

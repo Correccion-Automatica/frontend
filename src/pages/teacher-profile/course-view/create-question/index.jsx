@@ -61,7 +61,7 @@ export default function CreateQuestion() {
       return res.data;
     } catch (err) {
       console.error("❌ Error al crear la pregunta:", err);
-      alert("Ocurrió un error al crear la pregunta. Revisa la consola.");
+      alert("La pregunta con ese título ya existe. Por favor, elige otro título.");
       return null;
     } finally {
       setLoading(false);

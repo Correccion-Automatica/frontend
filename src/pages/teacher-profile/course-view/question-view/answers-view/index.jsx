@@ -1,6 +1,6 @@
 // src/pages/teacher-profile/course-view/question-view/answers-view/index.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import PageHeader from "../../../../../components/PageHeader";
 import CreditOptionDisplay from "../../../../../components/CreditOptionDisplay";
 import ButtonPrimary from "../../../../../components/ButtonPrimary";
@@ -9,6 +9,8 @@ import { useAuth } from "../../../../../context/AuthProvider";
 
 export default function AnswersView() {
   const { courseId, questionId } = useParams();
+  const location = useLocation();
+  const numStudents = location.state?.numStudents;
 
   const { user } = useAuth();
   const sidebarCredits = Number(user?.remaining_credits ?? user?.credits ?? 0);
@@ -154,6 +156,62 @@ export default function AnswersView() {
     }
   };
 
+  const splitFullName = (fullName) => {
+    const safe = String(fullName || "").trim();
+    if (!safe) return { firstName: "", lastName: "" };
+
+    const commaIndex = safe.indexOf(",");
+    if (commaIndex !== -1) {
+      const lastName = safe.slice(0, commaIndex).trim();
+      const firstName = safe.slice(commaIndex + 1).trim();
+      return { firstName, lastName };
+    }
+
+    const parts = safe.split(/\s+/);
+    if (parts.length === 1) return { firstName: safe, lastName: "" };
+
+    return {
+      firstName: parts.slice(0, -1).join(" "),
+      lastName: parts[parts.length - 1],
+    };
+  };
+
+  const escapeCsvValue = (value) => {
+    const stringValue = value === null || value === undefined ? "" : String(value);
+    if (/[",\n]/.test(stringValue)) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+
+  const handleDownloadExcel = () => {
+    const header = ["Apellido", "Nombre", "Calificacion"];
+    const rows = answers.map((ans) => {
+      const fullName = usersMap[ans.userId] || `Alumno #${ans.userId}`;
+      const { firstName, lastName } = splitFullName(fullName);
+      const r = recorrectionByAnswerId[Number(ans.id)];
+      const gradeValue =
+        r && r.newGrade !== null && r.newGrade !== undefined ? r.newGrade : ans.grade;
+      const gradeLabel =
+        gradeValue === null || gradeValue === undefined
+          ? ""
+          : Number(gradeValue).toFixed(2);
+      return [lastName, firstName, gradeLabel];
+    });
+
+    const lines = [header, ...rows].map((row) =>
+      row.map((value) => escapeCsvValue(value)).join(",")
+    );
+    const csv = "\ufeff" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Notas - ${question?.title || "Pregunta"}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   /* ---------------------------------------------------------
    * 3) Corregir TODAS las respuestas (auto)
    * --------------------------------------------------------- */
@@ -190,6 +248,9 @@ export default function AnswersView() {
         const g =
           r && r.newGrade !== null && r.newGrade !== undefined ? r.newGrade : a.grade;
 
+        if (g === null || g === undefined) {
+          return null;
+        }
         const n = Number(g);
         return Number.isFinite(n) ? n : null;
       })
@@ -561,7 +622,7 @@ export default function AnswersView() {
                 <div className="rounded-xl border border-(--color-border) bg-(--color-background) p-4">
                   <div className="text-xs text-(--color-muted)">Respuestas</div>
                   <div className="text-lg font-semibold">
-                    {answers.length}/{question?.numStudents || 88}
+                    {answers.length}/{numStudents ?? question?.numStudents ?? 0}
                   </div>
                 </div>
 
@@ -623,9 +684,11 @@ export default function AnswersView() {
                     {correctingAll ? "Corrigiendo..." : "Corregir todas"}
                   </ButtonPrimary>
                 )}
+                <button type="button" onClick={handleDownloadExcel} className="cursor-pointer w-full px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-sm md:px-6 md:py-2 md:text-base rounded-xl font-semibold shadow-sm transition-all duration-200 whitespace-nowrap border border-(--color-border) bg-(--color-background) hover:bg-(--color-hover-strong)">
+                  Descargar Excel
+                </button>
               </div>
             </div>
-
           </div>
 
           {/* Detalle */}

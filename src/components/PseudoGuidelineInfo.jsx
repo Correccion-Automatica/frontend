@@ -3,12 +3,7 @@ import React, { useMemo } from "react";
 
 function IconDoc({ className = "h-5 w-5" }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M7 3h7l3 3v15a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
         stroke="currentColor"
@@ -33,12 +28,7 @@ function IconDoc({ className = "h-5 w-5" }) {
 
 function IconInfo({ className = "h-5 w-5" }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"
         stroke="currentColor"
@@ -65,6 +55,7 @@ export default function PseudoGuidelineInfo({
   onChange = () => {},
   maxChars = 3000,
   disabled = false,
+  isEditing = true,
 }) {
   const len = value?.length || 0;
   const remaining = Math.max(0, maxChars - len);
@@ -83,9 +74,11 @@ export default function PseudoGuidelineInfo({
       ? "Llegaste al máximo permitido."
       : `Te quedan ${remaining} caracteres.`;
 
+    const editing = typeof isEditing === "boolean" ? isEditing : !disabled;
+
+
   return (
     <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) shadow-sm overflow-hidden">
-      {/* Header */}
       <div className="p-4 border-b border-(--color-border)">
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
@@ -103,9 +96,7 @@ export default function PseudoGuidelineInfo({
         </div>
       </div>
 
-      {/* Body */}
       <div className="p-4 space-y-4">
-        {/* Textarea card */}
         <div className="rounded-2xl border border-(--color-border) bg-(--color-background) p-3">
           <div className="flex items-center justify-between gap-3 mb-2">
             <label className="text-sm font-semibold">Texto de pseudopauta</label>
@@ -117,7 +108,6 @@ export default function PseudoGuidelineInfo({
             </div>
           </div>
 
-          {/* progress meter */}
           <div className="h-2 w-full rounded-full bg-(--color-surface) border border-(--color-border) overflow-hidden">
             <div
               className={`h-full ${meter} transition-all`}
@@ -139,11 +129,10 @@ export default function PseudoGuidelineInfo({
           <div className="mt-2 flex items-start justify-between gap-3">
             <p className="text-xs text-(--color-muted)">{helper}</p>
 
-            {len > 0 && (
+            {isEditing && len > 0 && !disabled && (
               <button
                 type="button"
                 onClick={() => onChange("")}
-                disabled={disabled}
                 className="text-xs font-semibold text-indigo-600 hover:underline"
                 title="Limpiar"
               >
@@ -153,14 +142,12 @@ export default function PseudoGuidelineInfo({
           </div>
         </div>
 
-        {/* Tips */}
         <div className="rounded-2xl border border-(--color-border) bg-(--color-background) p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h4 className="text-sm font-semibold">Tips para una buena pauta</h4>
               <p className="text-xs text-(--color-muted) mt-1">
-                Esto es opcional pues la IA puede crear una pauta por su cuenta
-                pero...
+                Esto es opcional pues la IA puede crear una pauta por su cuenta pero...
               </p>
             </div>
 
@@ -172,8 +159,7 @@ export default function PseudoGuidelineInfo({
           <ul className="mt-3 space-y-2 text-xs">
             <li className="flex gap-2">
               <span className="text-indigo-600 font-semibold">•</span>
-              Especificar las definiciones y criterios puede ayudar a que obtengas
-              lo que quieres.
+              Especificar las definiciones y criterios puede ayudar a que obtengas lo que quieres.
             </li>
             <li className="flex gap-2">
               <span className="text-indigo-600 font-semibold">•</span>
@@ -181,13 +167,11 @@ export default function PseudoGuidelineInfo({
             </li>
             <li className="flex gap-2">
               <span className="text-indigo-600 font-semibold">•</span>
-              Un pequeño párrafo por criterio de evaluación a considerar suele
-              bastar.
+              Un pequeño párrafo por criterio de evaluación a considerar suele bastar.
             </li>
             <li className="flex gap-2">
               <span className="text-indigo-600 font-semibold">•</span>
-              Agrega el puntaje al que se opta por responder bien la
-              pregunta/criterio.
+              Agrega el puntaje al que se opta por responder bien la pregunta/criterio.
             </li>
           </ul>
 
@@ -196,9 +180,8 @@ export default function PseudoGuidelineInfo({
               <IconInfo className="h-4 w-4" />
             </span>
             <span>
-              <span className="font-semibold">Nota:</span> La IA es como un
-              ayudante corrector. Redacta como si otra persona utilizara tu
-              pseudopauta para corregir. Evita ambigüedades.
+              <span className="font-semibold">Nota:</span> La IA es como un ayudante corrector.
+              Redacta como si otra persona utilizara tu pseudopauta para corregir. Evita ambigüedades.
             </span>
           </div>
         </div>
