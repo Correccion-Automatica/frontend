@@ -37,6 +37,7 @@ import Calendar from './pages/teacher-profile/Calendar.jsx';
 import Purchase from './pages/payments/purchase.jsx';
 import Checkout from './pages/payments/checkout.jsx';
 import PaymentsHistoryPage from './pages/payments/history.jsx';
+import Support from './pages/teacher-profile/Support.jsx';
 
 export default function Router() {
   return (
@@ -112,6 +113,14 @@ export default function Router() {
             <Route path="/payments/checkout/:orderId" element={<Checkout />} />
             <Route path="/payments/history" element={<PaymentsHistoryPage />} />
             <Route path="/howitworks" element={<Howitworks />} />
+            <Route
+              path="/support"
+              element={(
+                <ProtectedRoute>
+                  <Support />
+                </ProtectedRoute>
+              )}
+            />
           </Routes>
         </div>
 
