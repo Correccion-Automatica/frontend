@@ -1,51 +1,39 @@
-﻿import React, { useEffect } from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const plans = [
   {
-    name: "Explorador",
-    price: "$0",
-    period: "/mes",
+    name: 'Free — “Explorador”',
+    price: '$0',
+    period: '/ mes. Uso único.',
     badge: null,
-    description: "Acceso para probar la plataforma",
-    features: [
-      "Activa el banco de créditos gratuito cada mes",
-      "Sin costo de mantención ni cargos ocultos",
-      "Ideal para docentes que quieren experimentar",
-    ],
-    buttonText: "Comenzar gratis",
-    buttonStyle: "secondary",
-    buttonAction: "register",
+    description: 'Para probar la plataforma',
+    features: ['400 créditos (≈ 1 pauta o 40 correcciones)'],
+    buttonText: 'Comenzar gratis',
+    buttonStyle: 'secondary',
+    buttonAction: 'register',
   },
   {
-    name: "Impulsor",
-    price: "$4.990",
-    period: "/mes",
-    badge: "Más popular",
-    description: "Pensado para docentes activos",
-    features: [
-      "1 pauta completa + corrección para 90 personas",
-      "O 2 pautas y 27 correcciones por pauta",
-      "Ideal para preguntas ocasionales con seguimiento",
-    ],
-    buttonText: "Suscribirme",
-    buttonStyle: "featured",
-    buttonAction: "register",
+    name: 'Plan individual — “Impulsor”',
+    price: '$4.990',
+    period: '/ mes',
+    badge: 'Más popular',
+    description: 'Docentes que hacen preguntas ocasionalmente',
+    features: ['1 200 créditos (≈ 3 pautas o 120 correcciones)'],
+    buttonText: 'Suscribirme',
+    buttonStyle: 'featured',
+    buttonAction: 'register',
   },
   {
-    name: "Automatizador",
-    price: "$3.990",
-    period: " /por docente o curso",
-    badge: "Ideal para organizaciones",
-    description: "Diseñado para colegios y universidades",
-    features: [
-      "Incluye 1 pauta + 100 correcciones confirmadas",
-      "Escala según la cantidad de cursos activos",
-      "Soporte dedicado y renovación mensual",
-    ],
-    buttonText: "Suscribirme",
-    buttonStyle: "featured",
-    buttonAction: "register",
+    name: 'Enterprise — “Automatizador”',
+    price: '$3.990',
+    period: ' x Docente o Curso',
+    badge: 'Ideal para organizaciones',
+    description: 'Organizaciones, colegios o universidades',
+    features: ['1 330 créditos por Docente o Curso (≈ 4 pautas o 133 correcciones)'],
+    buttonText: 'Suscribirme',
+    buttonStyle: 'featured',
+    buttonAction: 'register',
   },
 ];
 
@@ -61,7 +49,6 @@ const formatCLP = (value) =>
 export default function Pricing() {
   const navigate = useNavigate();
 
-  // Extiende el fondo a toda la vista para evitar franjas blancas antes del footer.
   useEffect(() => {
     document.body.classList.add("pricing-page-bg");
     return () => document.body.classList.remove("pricing-page-bg");
@@ -69,7 +56,6 @@ export default function Pricing() {
 
   return (
     <div className="relative min-h-screen flex flex-col bg-gradient-to-br from-[#05030a] via-[#0a0820] to-[#05030a] text-slate-100 overflow-hidden pb-72">
-      {/* fondo glows */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -left-10 top-10 w-96 h-96 bg-purple-700/25 blur-3xl" />
         <div className="absolute right-0 bottom-0 w-[26rem] h-[26rem] bg-fuchsia-500/20 blur-[140px]" />
@@ -151,7 +137,7 @@ export default function Pricing() {
                 {creditPacks.map((pack, index) => (
                   <tr key={pack.name} className={index % 2 === 0 ? "bg-white/5" : "bg-white/10"}>
                     <td className="px-6 py-4 font-medium text-white">{pack.name}</td>
-                    <td className="px-6 py-4">{pack.credits.toLocaleString()}</td>
+                    <td className="px-6 py-4">{pack.credits.toLocaleString("es-CL")}</td>
                     <td className="px-6 py-4">{formatCLP(pack.price)}</td>
                     <td className="px-6 py-4">{pack.pricePerCredit}</td>
                     <td className="px-6 py-4 text-slate-200/90">{pack.relation}</td>
