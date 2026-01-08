@@ -102,7 +102,7 @@ function Register() {
           </div>
 
           <div className="relative z-10 w-full max-w-[620px] mx-auto text-left space-y-6">
-            <h1 className="text-4xl lg:text-[44px] font-bold leading-tight">Crea tu cuenta</h1>
+            <h1 className="text-4xl lg:text-[44px] font-bold leading-tight">Comienza tu viaje en la automatización</h1>
             <p className="text-white/90 text-base lg:text-lg max-w-2xl leading-relaxed">
               Regístrate para acceder a las herramientas de aprendizaje, evaluación y gestión de cursos.
             </p>
