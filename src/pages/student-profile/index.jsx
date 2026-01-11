@@ -3,8 +3,7 @@ import { api } from "../../lib/axios";
 import { useAuth } from "../../context/AuthProvider";
 import { Link, useLocation } from "react-router-dom";
 import { 
-  FaHome, FaBook, FaUsers, FaCalendarAlt, FaInbox, 
-  FaQuestionCircle
+  FaHome, FaBook, FaQuestionCircle
 } from "react-icons/fa";
 
 export default function StudentProfile() {
@@ -48,9 +47,6 @@ export default function StudentProfile() {
   const navLinks = [
     { to: "/dashboard", label: "Tablero", icon: <FaHome /> },
     { to: "/student-profile", label: "Cursos", icon: <FaBook /> },
-    { to: "/groups", label: "Grupos", icon: <FaUsers /> },
-    { to: "/calendar", label: "Calendario", icon: <FaCalendarAlt /> },
-    { to: "/inbox", label: "Bandeja de entrada", icon: <FaInbox /> },
     { to: "/support", label: "Ayuda y soporte", icon: <FaQuestionCircle /> },
   ];
 

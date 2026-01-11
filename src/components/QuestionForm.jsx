@@ -501,6 +501,7 @@ export default function QuestionForm({
           onChange={setTitle}
           readOnly={readOnly || (!!guidelineId && !isCreate)}
           placeholder="Ej: Caso de estudio sobre posicionamiento de marca"
+          singleLine={true}
         />
 
         <section className="space-y-5">
@@ -615,6 +616,7 @@ export default function QuestionForm({
           value={content}
           onChange={setContent}
           readOnly={readOnly || (!!guidelineId && !isCreate)}
+          height="min-h-[260px]"
         />
 
         {!isCreate && (
