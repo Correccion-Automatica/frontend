@@ -1,17 +1,14 @@
 import React, { useEffect, useState } from "react";
-import CardGrid from "../../components/CardGridCourses";
 import { api } from "../../lib/axios";
 import { useAuth } from "../../context/AuthProvider";
-import ButtonPrimary from "../../components/ButtonPrimary";
 import { Link, useLocation } from "react-router-dom";
-import { FaHome, FaBook, FaUsers, FaCalendarAlt, FaInbox } from "react-icons/fa";
-import { FaFolderOpen, FaCog, FaQuestionCircle, FaUserAlt, FaSignOutAlt } from "react-icons/fa";
+import { FaHome, FaBook } from "react-icons/fa";
+import { FaQuestionCircle, FaPlus, FaUser } from "react-icons/fa";
 
 export default function TeacherProfile() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -44,9 +41,6 @@ export default function TeacherProfile() {
   const navLinks = [
     { to: "/dashboard", label: "Tablero", icon: <FaHome /> },
     { to: "/teacher-profile", label: "Cursos", icon: <FaBook /> },
-    { to: "/groups", label: "Grupos", icon: <FaUsers /> },
-    { to: "/calendar", label: "Calendario", icon: <FaCalendarAlt /> },
-    { to: "/inbox", label: "Bandeja de entrada", icon: <FaInbox /> },
     { to: "/support", label: "Ayuda y soporte", icon: <FaQuestionCircle /> },
   ];
 
@@ -166,27 +160,58 @@ export default function TeacherProfile() {
             <div className="col-span-full text-center text-gray-400 dark:text-gray-500 animate-pulse">Cargando cursos...</div>
           ) : courses.length > 0 ? (
             courses.map(course => (
-              <div
+              <Link
                 key={course.id}
-                className="bg-white dark:bg-gray-900 rounded-xl shadow-md p-4 md:p-6 flex flex-col justify-between transition-all cursor-pointer border border-gray-100 dark:border-gray-700 w-full hover:bg-gray-100 dark:hover:bg-gray-800 hover:shadow-lg"
+                to={`/teacher-profile/course-view/${course.id}`}
+                state={{
+                  courseName: course.name,
+                  courseCode: course.acronym,
+                  coursePeriod: course.period,
+                }}
+                className="bg-white dark:bg-gray-900 rounded-xl shadow-md p-4 md:p-6 flex flex-col justify-between transition-all cursor-pointer border border-gray-100 dark:border-gray-700 w-full hover:bg-gray-100 dark:hover:bg-gray-800 hover:shadow-lg relative group"
               >
+                {/* Contenedor del botón con tooltip */}
+                <div className="absolute top-3 right-3 z-10 group/btn">
+                  {/* Botón + para agregar estudiantes - siempre visible */}
+                  <Link
+                    to={`/teacher-profile/course-view/${course.id}/add-users`}
+                    onClick={(e) => e.stopPropagation()}
+                    state={{
+                      courseName: course.name,
+                      courseCode: course.acronym,
+                      coursePeriod: course.period,
+                    }}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-all duration-300 overflow-hidden relative"
+                  >
+                    {/* Contenedor para la animación de desplazamiento */}
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      {/* Símbolo + que se desplaza a la izquierda y desaparece */}
+                      <div className="absolute transition-all duration-300 group-hover/btn:translate-x-[-24px] group-hover/btn:opacity-0">
+                        <FaPlus className="text-sm" />
+                      </div>
+                      {/* Icono persona que aparece desde la izquierda y se desplaza hasta el centro */}
+                      <div className="absolute transition-all duration-300 translate-x-[-24px] opacity-0 group-hover/btn:translate-x-0 group-hover/btn:opacity-100">
+                        <FaUser className="text-sm" />
+                      </div>
+                    </div>
+                  </Link>
+
+                  {/* Tooltip - aparece cuando se hace hover sobre el contenedor del botón */}
+                  <div className="absolute top-10 right-0 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg px-3 py-2 opacity-0 pointer-events-none whitespace-nowrap shadow-lg transition-opacity duration-300 group-hover/btn:opacity-100">
+                    Agregar estudiantes y roles al curso
+                    <div className="absolute -top-1 right-4 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45"></div>
+                  </div>
+                </div>
+
                 <div>
-                  <h2 className="text-lg md:text-xl font-bold text-gray-800 dark:text-white mb-2">{course.name}</h2>
+                  <h2 className="text-lg md:text-xl font-bold text-gray-800 dark:text-white mb-2 pr-8">{course.name}</h2>
                   <div className="text-sm text-gray-500 dark:text-gray-300 mb-1">{course.acronym} {course.period}</div>
                   <div className="text-xs text-gray-400 dark:text-gray-400">{course.numStudents} estudiantes</div>
                 </div>
-                <Link
-                  to={`/teacher-profile/course-view/${course.id}`}
-                  state={{
-                    courseName: course.name,
-                    courseCode: course.acronym,
-                    coursePeriod: course.period,
-                  }}
-                  className="mt-4 text-blue-600 dark:text-blue-400 hover:underline font-medium"
-                >
+                <div className="mt-4 text-blue-600 dark:text-blue-400 hover:underline font-medium">
                   Ver detalles
-                </Link>
-              </div>
+                </div>
+              </Link>
             ))
           ) : (
             <div className="col-span-full text-center text-gray-400 dark:text-gray-500">No tienes cursos asignados.</div>
@@ -195,22 +220,13 @@ export default function TeacherProfile() {
       </main>
 
       <nav className="fixed bottom-0 left-0 w-full bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 flex justify-between items-center px-2 py-1 shadow-lg md:hidden z-40">
-        <Link to="/dashboard" className="flex flex-col items-center justify-center text-xs text-blue-700 dark:text-blue-400 font-semibold w-1/6">
+        <Link to="/dashboard" className="flex flex-col items-center justify-center text-xs text-blue-700 dark:text-blue-400 font-semibold w-1/4">
           <FaHome className="text-lg mb-1" /> Tablero
         </Link>
-        <Link to="/teacher-profile" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
+        <Link to="/teacher-profile" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/4">
           <FaBook className="text-lg mb-1" /> Cursos
         </Link>
-        <Link to="/groups" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
-          <FaUsers className="text-lg mb-1" /> Grupos
-        </Link>
-        <Link to="/calendar" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
-          <FaCalendarAlt className="text-lg mb-1" /> Calendario
-        </Link>
-        <Link to="/inbox" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
-          <FaInbox className="text-lg mb-1" /> Bandeja
-        </Link>
-        <Link to="/support" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
+        <Link to="/support" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/4">
           <FaQuestionCircle className="text-lg mb-1" /> Ayuda
         </Link>
       </nav>
