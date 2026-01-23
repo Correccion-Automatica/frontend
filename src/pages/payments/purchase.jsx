@@ -51,11 +51,17 @@ export default function Purchase() {
     try {
       const totalAmount = cart.length ? cart.reduce((sum, item) => sum + Number(item.price), 0) : computed.total;
       const totalCredits = cart.length ? cart.reduce((sum, item) => sum + Number(item.credits), 0) : computed.qty;
+      const categoryId = 'services'; // recomendado por MP para aprobación
+      const description =
+        cart.length > 0
+          ? `Carrito de créditos: ${cart.map((i) => `${i.credits} créditos`).join(' | ')}`
+          : `Compra de ${totalCredits} créditos (${selectedPack.label})`;
       const body = {
         amount: totalAmount,
         credits: totalCredits,
         userId: user?.id,
-        description: `Compra de ${totalCredits} creditos`,
+        description,
+        categoryId,
       };
 
       const res = await api.post('/mp/create', body);
