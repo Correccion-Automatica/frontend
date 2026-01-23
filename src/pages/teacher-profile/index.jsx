@@ -4,7 +4,7 @@ import { api } from "../../lib/axios";
 import { useAuth } from "../../context/AuthProvider";
 import ButtonPrimary from "../../components/ButtonPrimary";
 import { Link, useLocation } from "react-router-dom";
-import { FaHome, FaBook, FaUsers, FaCalendarAlt, FaInbox } from "react-icons/fa";
+import { FaBook, FaUsers, FaInbox } from "react-icons/fa";
 import { FaFolderOpen, FaCog, FaQuestionCircle, FaUserAlt, FaSignOutAlt } from "react-icons/fa";
 
 export default function TeacherProfile() {
@@ -47,10 +47,8 @@ export default function TeacherProfile() {
   ];
 
   const navLinks = [
-    { to: "/dashboard", label: "Tablero", icon: <FaHome /> },
     { to: "/teacher-profile", label: "Cursos", icon: <FaBook /> },
     { to: "/groups", label: "Grupos", icon: <FaUsers /> },
-    { to: "/calendar", label: "Calendario", icon: <FaCalendarAlt /> },
     { to: "/inbox", label: "Bandeja de entrada", icon: <FaInbox /> },
     { to: "/support", label: "Ayuda y soporte", icon: <FaQuestionCircle /> },
   ];
@@ -209,22 +207,16 @@ export default function TeacherProfile() {
       </main>
 
       <nav className="fixed bottom-0 left-0 w-full bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 flex justify-between items-center px-2 py-1 shadow-lg md:hidden z-40">
-        <Link to="/dashboard" className="flex flex-col items-center justify-center text-xs text-blue-700 dark:text-blue-400 font-semibold w-1/6">
-          <FaHome className="text-lg mb-1" /> Tablero
-        </Link>
-        <Link to="/teacher-profile" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
+        <Link to="/teacher-profile" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/4">
           <FaBook className="text-lg mb-1" /> Cursos
         </Link>
-        <Link to="/groups" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
+        <Link to="/groups" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/4">
           <FaUsers className="text-lg mb-1" /> Grupos
         </Link>
-        <Link to="/calendar" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
-          <FaCalendarAlt className="text-lg mb-1" /> Calendario
-        </Link>
-        <Link to="/inbox" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
+        <Link to="/inbox" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/4">
           <FaInbox className="text-lg mb-1" /> Bandeja
         </Link>
-        <Link to="/support" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
+        <Link to="/support" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/4">
           <FaQuestionCircle className="text-lg mb-1" /> Ayuda
         </Link>
       </nav>
