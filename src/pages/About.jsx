@@ -11,7 +11,13 @@ const principles = [
 
 const team = [
   { name: "Trinidad", role: "Backend Developer", bio: "Dedicada a asegurar la satisfacción del cliente y el éxito, con un enfoque proactivo para brindar soporte y retención." },
-  { name: "Francisco", role: "Product Manager", bio: "Especialista en operaciones con experiencia en startups escalables, asegurando operaciones fluidas y eficientes." },
+  {
+    name: "Francisco",
+    role: "Product Manager",
+    bio: 'Ingeniero PUC con Magister en Ciencias de la Ingenieria, docente universitario y director del proyecto, responsable de la vision estrategica, liderazgo de equipos y ejecucion de iniciativas de alto impacto. "Querer es poder"',
+    linkedin: "https://www.linkedin.com/in/francisco-garc%C3%ADa-v/",
+    image: "/images/team/francisco.jpeg",
+  },
   { name: "Vicente", role: "Frontend Developer", bio: "Gerente de producto apasionado enfocado en entregar soluciones centradas en el usuario que satisfacen las necesidades del mercado." },
   { name: "Pía", role: "Frontend Developer", bio: "Gurú técnico con pasión por desarrollar aplicaciones escalables y seguras basadas en la nube." },
 ];
@@ -121,16 +127,61 @@ export default function AboutSimple() {
             Un grupo diverso de profesionales apasionados, cada uno aportando habilidades técnicas para impulsar la innovación y excelencia en cada proyecto.
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {team.map((m) => (
-              <div key={m.name} className="rounded-2xl border border-white/10 bg-white/5 p-5 text-center shadow-lg shadow-black/30 transition transform hover:-translate-y-1 hover:shadow-purple-900/40 hover:bg-white/10">
-                <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 text-white flex items-center justify-center text-lg font-bold shadow-[0_10px_30px_rgba(99,102,241,0.35)]">
-                  {m.name.charAt(0)}
+            {team.map((m, idx) => {
+              const knobs = idx % 2 === 0
+                ? [
+                    { top: "-10px", left: "50%", translate: "-50%,0" },
+                    { right: "-10px", top: "50%", translate: "0,-50%" },
+                  ]
+                : [
+                    { left: "-10px", top: "50%", translate: "0,-50%" },
+                    { bottom: "-10px", left: "50%", translate: "-50%,0" },
+                  ];
+              return (
+                <div
+                  key={m.name}
+                  className="relative overflow-visible rounded-2xl border border-white/10 bg-white/5 p-5 text-center shadow-lg shadow-black/30 transition transform hover:-translate-y-1 hover:shadow-purple-900/40 hover:bg-white/10 space-y-2"
+                >
+                  {knobs.map((k, i) => (
+                    <span
+                      key={i}
+                      className="absolute w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 shadow-[0_8px_18px_rgba(99,102,241,0.35)]"
+                      style={{
+                        top: k.top,
+                        bottom: k.bottom,
+                        left: k.left,
+                        right: k.right,
+                        transform: `translate(${k.translate || "0,0"})`,
+                        pointerEvents: "none",
+                      }}
+                    />
+                  ))}
+                  <div className="mx-auto mb-2 w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 text-white flex items-center justify-center text-lg font-bold shadow-[0_10px_30px_rgba(99,102,241,0.35)] overflow-hidden">
+                    {m.image ? (
+                      <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
+                    ) : (
+                      m.name.charAt(0)
+                    )}
+                  </div>
+                  <h3 className="text-lg font-semibold text-white">{m.name}</h3>
+                  <p className="text-sm text-purple-300">{m.role}</p>
+                  <p className="text-sm text-slate-200 mt-2 leading-relaxed">{m.bio}</p>
+                  {m.linkedin && (
+                    <a
+                      href={m.linkedin}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center gap-1 text-sm text-blue-300 hover:text-blue-200 transition"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
+                        <path d="M3.65 6H1V15H3.65V6ZM2.33 1A1.56 1.56 0 1 0 2.33 4.11 1.56 1.56 0 1 0 2.33 1ZM15 10.22V15H12.35V10.55C12.35 9.5 11.94 8.79 11 8.79 10.28 8.79 9.85 9.27 9.65 9.73 9.57 9.93 9.55 10.22 9.55 10.51V15H6.9S6.93 6.77 6.9 6H9.55V7.15A2.65 2.65 0 0 1 11.91 6.1C13.67 6.1 15 7.26 15 10.22Z" />
+                      </svg>
+                      LinkedIn
+                    </a>
+                  )}
                 </div>
-                <h3 className="text-lg font-semibold text-white">{m.name}</h3>
-                <p className="text-sm text-purple-300">{m.role}</p>
-                <p className="text-sm text-slate-200 mt-2 leading-relaxed">{m.bio}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
