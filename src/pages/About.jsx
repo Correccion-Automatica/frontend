@@ -1,4 +1,4 @@
-﻿import React from "react";
+﻿
 
 const principles = [
   { title: "Propósito antes que Producto", desc: "No construimos solo una API: trabajamos por un nuevo paradigma educativo. Cada decisión está guiada por la misión de democratizar la educación y generar impacto positivo." },
@@ -16,10 +16,17 @@ const team = [
     role: "Product Manager",
     bio: 'Ingeniero PUC con Magister en Ciencias de la Ingenieria, docente universitario y director del proyecto, responsable de la vision estrategica, liderazgo de equipos y ejecucion de iniciativas de alto impacto. "Querer es poder"',
     linkedin: "https://www.linkedin.com/in/francisco-garc%C3%ADa-v/",
-    image: "/images/team/francisco.jpeg",
+    image: "/images/team/francisco.png",
   },
   { name: "Vicente", role: "Frontend Developer", bio: "Gerente de producto apasionado enfocado en entregar soluciones centradas en el usuario que satisfacen las necesidades del mercado." },
-  { name: "Pía", role: "Frontend Developer", bio: "Gurú técnico con pasión por desarrollar aplicaciones escalables y seguras basadas en la nube." },
+  {
+    name: "Pia",
+    role: "Frontend Developer",
+    bio: 'Estudiante de Ingeniería Civil Industrial con énfasis en liderazgo social, equidad de género en STEM e innovación educativa, con experiencia en docencia, investigación y gestión colaborativa ',
+    quote: "La educación es el arma más poderosa para cambiar el mundo.",
+    linkedin: "https://www.linkedin.com/in/pia-ayala-nanjari-b02950211/",
+    image: "/images/team/pia.png",
+  },
 ];
 
 export default function AboutSimple() {
@@ -140,7 +147,7 @@ export default function AboutSimple() {
               return (
                 <div
                   key={m.name}
-                  className="relative overflow-visible rounded-2xl border border-white/10 bg-white/5 p-5 text-center shadow-lg shadow-black/30 transition transform hover:-translate-y-1 hover:shadow-purple-900/40 hover:bg-white/10 space-y-2"
+                  className="relative overflow-visible rounded-2xl border border-white/10 bg-white/5 p-5 text-center shadow-lg shadow-black/30 transition transform hover:-translate-y-1 hover:shadow-purple-900/40 hover:bg-white/10 space-y-3"
                 >
                   {knobs.map((k, i) => (
                     <span
@@ -156,7 +163,7 @@ export default function AboutSimple() {
                       }}
                     />
                   ))}
-                  <div className="mx-auto mb-2 w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 text-white flex items-center justify-center text-lg font-bold shadow-[0_10px_30px_rgba(99,102,241,0.35)] overflow-hidden">
+                  <div className="mx-auto mb-3 w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 text-white flex items-center justify-center text-xl font-bold shadow-[0_18px_42px_rgba(99,102,241,0.35)] overflow-hidden">
                     {m.image ? (
                       <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
                     ) : (
@@ -165,18 +172,19 @@ export default function AboutSimple() {
                   </div>
                   <h3 className="text-lg font-semibold text-white">{m.name}</h3>
                   <p className="text-sm text-purple-300">{m.role}</p>
-                  <p className="text-sm text-slate-200 mt-2 leading-relaxed">{m.bio}</p>
-                  {m.linkedin && (
-                    <a
-                      href={m.linkedin}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center justify-center gap-1 text-sm text-blue-300 hover:text-blue-200 transition"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
-                        <path d="M3.65 6H1V15H3.65V6ZM2.33 1A1.56 1.56 0 1 0 2.33 4.11 1.56 1.56 0 1 0 2.33 1ZM15 10.22V15H12.35V10.55C12.35 9.5 11.94 8.79 11 8.79 10.28 8.79 9.85 9.27 9.65 9.73 9.57 9.93 9.55 10.22 9.55 10.51V15H6.9S6.93 6.77 6.9 6H9.55V7.15A2.65 2.65 0 0 1 11.91 6.1C13.67 6.1 15 7.26 15 10.22Z" />
-                      </svg>
-                      LinkedIn
+                <p className="text-sm text-slate-200 mt-2 leading-relaxed">{m.bio}</p>
+                {m.linkedin && (
+                  <a
+                    href={m.linkedin}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-1 text-sm text-blue-300 hover:text-blue-200 underline underline-offset-2 transition pointer-events-auto"
+                    aria-label={`LinkedIn de ${m.name}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
+                      <path d="M3.65 6H1V15H3.65V6ZM2.33 1A1.56 1.56 0 1 0 2.33 4.11 1.56 1.56 0 1 0 2.33 1ZM15 10.22V15H12.35V10.55C12.35 9.5 11.94 8.79 11 8.79 10.28 8.79 9.85 9.27 9.65 9.73 9.57 9.93 9.55 10.22 9.55 10.51V15H6.9S6.93 6.77 6.9 6H9.55V7.15A2.65 2.65 0 0 1 11.91 6.1C13.67 6.1 15 7.26 15 10.22Z" />
+                    </svg>
+                    LinkedIn
                     </a>
                   )}
                 </div>
