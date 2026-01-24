@@ -1,6 +1,6 @@
 // src/pages/teacher-profile/course-view/question-view/answers-view/index.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import PageHeader from "../../../../../components/PageHeader";
 import CreditOptionDisplay from "../../../../../components/CreditOptionDisplay";
 import ButtonPrimary from "../../../../../components/ButtonPrimary";
@@ -9,6 +9,8 @@ import { useAuth } from "../../../../../context/AuthProvider";
 
 export default function AnswersView() {
   const { courseId, questionId } = useParams();
+  const location = useLocation();
+  const numStudents = location.state?.numStudents;
 
   const { user } = useAuth();
   const sidebarCredits = Number(user?.remaining_credits ?? user?.credits ?? 0);
@@ -44,6 +46,7 @@ export default function AnswersView() {
     const loadData = async () => {
       try {
         setLoading(true);
+        setError(null);
 
         // ---- Pregunta ----
         const res = await api.get(`/questions/${courseId}`);
@@ -82,8 +85,17 @@ export default function AnswersView() {
         setUsersMap(map);
 
         // ---- Recorrections ----
-        const rec = await api.get("/recorrection");
-        const recs = rec.data || [];
+        // ✅ Si el backend responde 404 cuando no hay recorrecciones,
+        // lo tratamos como lista vacía y NO como error.
+        let recs = [];
+        try {
+          const rec = await api.get("/recorrection");
+          recs = rec.data || [];
+        } catch (err) {
+          const status = err?.response?.status;
+          if (status === 404) recs = [];
+          else throw err;
+        }
 
         // Mapear por answerId (si viene duplicado, tomamos el último por id)
         const recMap = {};
@@ -144,6 +156,62 @@ export default function AnswersView() {
     }
   };
 
+  const splitFullName = (fullName) => {
+    const safe = String(fullName || "").trim();
+    if (!safe) return { firstName: "", lastName: "" };
+
+    const commaIndex = safe.indexOf(",");
+    if (commaIndex !== -1) {
+      const lastName = safe.slice(0, commaIndex).trim();
+      const firstName = safe.slice(commaIndex + 1).trim();
+      return { firstName, lastName };
+    }
+
+    const parts = safe.split(/\s+/);
+    if (parts.length === 1) return { firstName: safe, lastName: "" };
+
+    return {
+      firstName: parts.slice(0, -1).join(" "),
+      lastName: parts[parts.length - 1],
+    };
+  };
+
+  const escapeCsvValue = (value) => {
+    const stringValue = value === null || value === undefined ? "" : String(value);
+    if (/[",\n]/.test(stringValue)) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+
+  const handleDownloadExcel = () => {
+    const header = ["Apellido", "Nombre", "Calificacion"];
+    const rows = answers.map((ans) => {
+      const fullName = usersMap[ans.userId] || `Alumno #${ans.userId}`;
+      const { firstName, lastName } = splitFullName(fullName);
+      const r = recorrectionByAnswerId[Number(ans.id)];
+      const gradeValue =
+        r && r.newGrade !== null && r.newGrade !== undefined ? r.newGrade : ans.grade;
+      const gradeLabel =
+        gradeValue === null || gradeValue === undefined
+          ? ""
+          : Number(gradeValue).toFixed(2);
+      return [lastName, firstName, gradeLabel];
+    });
+
+    const lines = [header, ...rows].map((row) =>
+      row.map((value) => escapeCsvValue(value)).join(",")
+    );
+    const csv = "\ufeff" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Notas - ${question?.title || "Pregunta"}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   /* ---------------------------------------------------------
    * 3) Corregir TODAS las respuestas (auto)
    * --------------------------------------------------------- */
@@ -180,6 +248,9 @@ export default function AnswersView() {
         const g =
           r && r.newGrade !== null && r.newGrade !== undefined ? r.newGrade : a.grade;
 
+        if (g === null || g === undefined) {
+          return null;
+        }
         const n = Number(g);
         return Number.isFinite(n) ? n : null;
       })
@@ -203,7 +274,6 @@ export default function AnswersView() {
     const r = recorrectionByAnswerId[Number(answerId)];
     return Boolean(r && r.answerId && r.newGrade === null);
   };
-
 
   /* ---------------------------------------------------------
    * 5) Recorrección handlers
@@ -265,9 +335,7 @@ export default function AnswersView() {
 
       // ✅ actualizar nota visible en la respuesta
       setAnswers((prev) =>
-        prev.map((a) =>
-          Number(a.id) === key ? { ...a, grade: newGradeNum } : a
-        )
+        prev.map((a) => (Number(a.id) === key ? { ...a, grade: newGradeNum } : a))
       );
 
       setRecorrectionMsg((prev) => ({
@@ -300,9 +368,7 @@ export default function AnswersView() {
 
         // Si hay recorrección resuelta, esa nota manda
         const gradeToShow =
-          r && r.newGrade !== null && r.newGrade !== undefined
-            ? r.newGrade
-            : ans.grade;
+          r && r.newGrade !== null && r.newGrade !== undefined ? r.newGrade : ans.grade;
 
         const gradeLabel =
           gradeToShow === null || gradeToShow === undefined
@@ -434,7 +500,6 @@ export default function AnswersView() {
                     <th className="p-3 font-semibold w-[15%]">Nota</th>
                     <th className="p-3 font-semibold w-[35%] text-right">Estado</th>
                   </tr>
-
                 </thead>
 
                 <tbody>
@@ -446,9 +511,7 @@ export default function AnswersView() {
                         key={r.id}
                         onClick={() => setSelectedAnswerId(Number(r.id))}
                         className={`cursor-pointer border-b border-(--color-border)
-                          ${isSelected
-                            ? "bg-green-50"
-                            : "hover:bg-(--color-background)"
+                          ${isSelected ? "bg-green-50" : "hover:bg-(--color-background)"
                           }`}
                       >
                         <td className="p-3 min-w-0">
@@ -492,11 +555,8 @@ export default function AnswersView() {
             <div className="p-4 border-t border-(--color-border) flex flex-col gap-2">
               <div className="text-xs text-(--color-muted)">
                 Mostrando{" "}
-                <span className="font-semibold">{total === 0 ? 0 : startIdx + 1}</span>
-                –
-                <span className="font-semibold">
-                  {Math.min(total, startIdx + pageSize)}
-                </span>{" "}
+                <span className="font-semibold">{total === 0 ? 0 : startIdx + 1}</span>–
+                <span className="font-semibold">{Math.min(total, startIdx + pageSize)}</span>{" "}
                 de <span className="font-semibold">{total}</span>
               </div>
 
@@ -562,7 +622,7 @@ export default function AnswersView() {
                 <div className="rounded-xl border border-(--color-border) bg-(--color-background) p-4">
                   <div className="text-xs text-(--color-muted)">Respuestas</div>
                   <div className="text-lg font-semibold">
-                    {answers.length}/{question?.numStudents || 88}
+                    {answers.length}/{numStudents ?? question?.numStudents ?? 0}
                   </div>
                 </div>
 
@@ -588,6 +648,7 @@ export default function AnswersView() {
             </div>
 
             {/* Acciones */}
+            {/* Acciones */}
             <div className="bg-(--color-surface) border border-(--color-border) rounded-2xl shadow-sm p-6">
               <h2 className="text-base font-semibold">Acciones</h2>
               <p className="text-sm text-(--color-muted) mt-1">
@@ -605,7 +666,12 @@ export default function AnswersView() {
                   </div>
                 )}
 
-                {allGraded ? (
+                {/* ⬇️ AQUÍ VA EL CAMBIO */}
+                {answers.length === 0 ? (
+                  <div className="w-full rounded-xl border border-(--color-border) bg-(--color-background) p-3 text-sm text-(--color-muted) text-center">
+                    No hay respuestas a corregir
+                  </div>
+                ) : allGraded ? (
                   <div className="w-full rounded-xl bg-green-50 text-green-800 border border-green-200 p-3 text-sm font-semibold text-center">
                     ✓ Todas corregidas
                   </div>
@@ -618,6 +684,9 @@ export default function AnswersView() {
                     {correctingAll ? "Corrigiendo..." : "Corregir todas"}
                   </ButtonPrimary>
                 )}
+                <button type="button" onClick={handleDownloadExcel} className="cursor-pointer w-full px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-sm md:px-6 md:py-2 md:text-base rounded-xl font-semibold shadow-sm transition-all duration-200 whitespace-nowrap border border-(--color-border) bg-(--color-background) hover:bg-(--color-hover-strong)">
+                  Descargar Excel
+                </button>
               </div>
             </div>
           </div>
@@ -721,8 +790,8 @@ export default function AnswersView() {
                                 </label>
                                 <textarea
                                   value={
-                                    recorrectionForm[Number(selectedAnswer.id)]?.teachersFeedback ??
-                                    ""
+                                    recorrectionForm[Number(selectedAnswer.id)]
+                                      ?.teachersFeedback ?? ""
                                   }
                                   onChange={(e) =>
                                     handleRecorrectionInput(
@@ -745,8 +814,12 @@ export default function AnswersView() {
 
                             <div className="flex justify-end">
                               <ButtonPrimary
-                                onClick={() => handleSubmitRecorrection(selectedAnswer.id)}
-                                disabled={Boolean(savingRecorrection[Number(selectedAnswer.id)])}
+                                onClick={() =>
+                                  handleSubmitRecorrection(selectedAnswer.id)
+                                }
+                                disabled={Boolean(
+                                  savingRecorrection[Number(selectedAnswer.id)]
+                                )}
                               >
                                 {savingRecorrection[Number(selectedAnswer.id)]
                                   ? "Guardando..."

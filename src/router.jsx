@@ -10,10 +10,13 @@ import CreateQuestion from "./pages/teacher-profile/course-view/create-question/
 import QuestionView from "./pages/teacher-profile/course-view/question-view/index.jsx";
 import AnswersView from "./pages/teacher-profile/course-view/question-view/answers-view/index.jsx";
 import CreateGuideline from "./pages/teacher-profile/course-view/create-question/create-guideline/index.jsx";
+import AddUsersToCourse from "./pages/teacher-profile/course-view/add-users/index.jsx";
 import AdminProfile from "./pages/admin-profile/index.jsx";
 import FacultyPage from "./pages/admin-profile/faculty/index.jsx";
 import AdminCourse from "./pages/admin-profile/faculty/course/index.jsx";
 import TeacherProfileAdmin from "./pages/admin-profile/teacher";
+
+import ACSuperView from "./pages/ac-super-view/index.jsx";
 
 import Howitworks from "./pages/Howitworks";
 import Contact from './pages/Contact.jsx';
@@ -33,7 +36,6 @@ import CookiesPolicy from './pages/legal/cookies.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import RequireRole from './components/RequiredRole.jsx';
 
-import Calendar from './pages/teacher-profile/Calendar.jsx';
 import Purchase from './pages/payments/purchase.jsx';
 import Checkout from './pages/payments/checkout.jsx';
 import PaymentsHistoryPage from './pages/payments/history.jsx';
@@ -58,7 +60,6 @@ export default function Router() {
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/cookies" element={<CookiesPolicy />} />
-            <Route path="/calendar" element={<Calendar />} />
 
             {/*Rutas Admin*/}
             <Route path="/admin-profile" element={<AdminProfile />} />
@@ -109,6 +110,14 @@ export default function Router() {
               path="/teacher-profile/course-view/:courseId/question/:questionId/create-guideline"
               element={<CreateGuideline />}
             />
+            <Route
+              path="/teacher-profile/course-view/:courseId/add-users"
+              element={<AddUsersToCourse />}
+            />
+
+          {/*Rutas Super-Admin-AC*/}
+            <Route path="/ac-super-view" element={<ACSuperView/>} />
+
             <Route path="/payments/purchase" element={<Purchase />} />
             <Route path="/payments/checkout/:orderId" element={<Checkout />} />
             <Route path="/payments/history" element={<PaymentsHistoryPage />} />
