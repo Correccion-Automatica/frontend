@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/axios";
 import { useAuth } from "../context/AuthProvider";
 
@@ -18,34 +18,57 @@ const formatCLP = (value) =>
 export default function PaymentsHistory() {
   const { user } = useAuth();
   const [payments, setPayments] = useState([]);
+  const [summary, setSummary] = useState({
+    totalSpent: 0,
+    creditsPurchased: 0,
+    creditsAvailable: 0,
+    creditsUsed: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.get("/payments");
-        setPayments(res.data || []);
+        // 1) Traer pagos
+        const paymentsRes = await api.get("/payments", { withCredentials: true }).catch(() => null);
+        const paymentsData = paymentsRes?.data || [];
+        setPayments(paymentsData);
+
+        // 2) Traer resumen; si falla, calcular a partir de pagos y créditos del usuario
+        const summaryRes = await api.get("/payments/summary", { withCredentials: true }).catch(() => null);
+        if (summaryRes?.data) {
+          setSummary({
+            totalSpent: Number(summaryRes.data.totalSpent) || 0,
+            creditsPurchased: Number(summaryRes.data.creditsPurchased) || 0,
+            creditsAvailable: Number(summaryRes.data.creditsAvailable) || 0,
+            creditsUsed: Number(summaryRes.data.creditsUsed) || 0,
+          });
+        } else {
+          const paidOnly = paymentsData.filter((p) => p.status === "paid");
+          const totalSpent = paidOnly.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+          const creditsPurchased = paidOnly.reduce((sum, p) => sum + (Number(p.credits) || 0), 0);
+          const creditsAvailable = Number(user?.remaining_credits ?? user?.remainingCredits ?? 0);
+          const creditsUsed = Math.max(creditsPurchased - creditsAvailable, 0);
+          setSummary({ totalSpent, creditsPurchased, creditsAvailable, creditsUsed });
+        }
       } catch (err) {
         console.error("[PaymentsHistory] error", err);
+        const creditsAvailable = Number(user?.remaining_credits ?? user?.remainingCredits ?? 0);
+        setSummary({ totalSpent: 0, creditsPurchased: 0, creditsAvailable, creditsUsed: 0 });
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [user?.remaining_credits, user?.remainingCredits]);
 
-  const stats = useMemo(() => {
-    const totalAmount = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-    const totalCredits = payments.reduce((sum, p) => sum + (Number(p.credits) || 0), 0);
-    return { totalAmount, totalCredits };
-  }, [payments]);
-
-  const availableCredits = Number(user?.remaining_credits ?? user?.credits ?? 0);
-  const usedCredits = Math.max(stats.totalCredits - availableCredits, 0);
+  const availableCredits = Number(summary.creditsAvailable || 0);
+  const usedCredits = Number(summary.creditsUsed || 0);
+  const totalCreditsBar = availableCredits + usedCredits || 1;
 
   const filteredPayments = useMemo(() => {
     const searchLower = search.toLowerCase();
-    return payments.filter((payment) => {
+    return (payments || []).filter((payment) => {
       const desc = payment.description?.toLowerCase() || "";
       const status = payment.status?.toLowerCase() || "";
       const id = payment.id?.toString() || "";
@@ -66,17 +89,21 @@ export default function PaymentsHistory() {
         />
         <div className="flex items-center gap-4 text-sm text-slate-700 dark:text-slate-200">
           <div className="px-4 py-2 rounded-xl bg-white dark:bg-[#0f1016] border border-slate-100 dark:border-[#1c1c20] shadow-sm">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Total gastado</p>
-            <p className="text-lg font-semibold">{formatCLP(stats.totalAmount)}</p>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Total pagado (CLP)</p>
+            <p className="text-lg font-semibold">{formatCLP(summary.totalSpent)}</p>
           </div>
           <div className="px-4 py-2 rounded-xl bg-white dark:bg-[#0f1016] border border-slate-100 dark:border-[#1c1c20] shadow-sm hidden sm:block">
             <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Créditos comprados</p>
-            <p className="text-lg font-semibold">{stats.totalCredits.toLocaleString()} créditos</p>
+            <p className="text-lg font-semibold">{summary.creditsPurchased.toLocaleString()} créditos</p>
+          </div>
+          <div className="px-4 py-2 rounded-xl bg-white dark:bg-[#0f1016] border border-slate-100 dark:border-[#1c1c20] shadow-sm hidden sm:block">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Créditos usados</p>
+            <p className="text-lg font-semibold">{usedCredits.toLocaleString()} créditos</p>
           </div>
         </div>
       </div>
 
-      {/* Vista de uso de créditos (gráfica simple) */}
+      {/* Vista de uso de créditos */}
       <div className="rounded-3xl border border-slate-100 dark:border-[#1c1c20] bg-gradient-to-r from-slate-50 via-white to-slate-50 dark:from-[#0f1016] dark:via-[#0b0d13] dark:to-[#0f1016] shadow-xl p-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
@@ -94,14 +121,14 @@ export default function PaymentsHistory() {
             <div className="flex-1 flex flex-col justify-end">
               <div
                 className="w-full rounded-full bg-indigo-500"
-                style={{ height: `${Math.min(100, usedCredits && stats.totalCredits ? (usedCredits / (stats.totalCredits || 1)) * 100 : 20)}%` }}
+                style={{ height: `${Math.min(100, (usedCredits / totalCreditsBar) * 100)}%` }}
               />
               <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 text-center">Usados</p>
             </div>
             <div className="flex-1 flex flex-col justify-end">
               <div
                 className="w-full rounded-full bg-emerald-500"
-                style={{ height: `${Math.min(100, availableCredits && (availableCredits + usedCredits) ? (availableCredits / (availableCredits + usedCredits || 1)) * 100 : 20)}%` }}
+                style={{ height: `${Math.min(100, (availableCredits / totalCreditsBar) * 100)}%` }}
               />
               <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 text-center">Disponibles</p>
             </div>
@@ -109,7 +136,7 @@ export default function PaymentsHistory() {
         </div>
       </div>
 
-      {/* Table / list */}
+      {/* Tabla / lista */}
       <div className="rounded-3xl bg-white dark:bg-[#0f1016] shadow-2xl border border-slate-100 dark:border-[#1c1c20] overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-5 py-4 bg-gradient-to-r from-slate-50 via-white to-white dark:from-[#0f1016] dark:via-[#0b0d13] dark:to-[#0f1016] border-b border-slate-100 dark:border-[#1c1c20]">
           <div>
