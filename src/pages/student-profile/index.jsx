@@ -138,10 +138,6 @@ export default function StudentProfile() {
                   <div className="text-sm text-gray-500 dark:text-gray-300 mb-1">
                     {course.acronym} {course.period}
                   </div>
-
-                  <div className="text-xs text-gray-400 dark:text-gray-400">
-                    Profesor ID: {course.professorId}
-                  </div>
                 </div>
 
                 <Link

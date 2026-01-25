@@ -19,12 +19,14 @@ export default function TeacherCourseView() {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [totalStudents, setTotalStudents] = useState(0);
 
   const columns = [
     { header: "Título", accessor: "title" },
     { header: "Entrega", accessor: "dueDate" },
     { header: "Estado", accessor: "status" },
     { header: "Respuestas", accessor: "answers" },
+    { header: "Corrección", accessor: "correctionStatus" },
     { header: "Recorrecciones", accessor: "recorrectionsStatus" },
   ];
 
@@ -38,6 +40,18 @@ export default function TeacherCourseView() {
         setLoading(true);
         setError(null);
 
+        // 0) Obtener información del curso (numStudents) - PRIMERO
+        let courseNumStudents = 0;
+        try {
+          const courseRes = await api.get(`/courses/${courseId}`);
+          if (courseRes.data?.numStudents !== undefined && courseRes.data?.numStudents !== null) {
+            courseNumStudents = Number(courseRes.data.numStudents);
+            setTotalStudents(courseNumStudents);
+          }
+        } catch (err) {
+          console.error("Error obteniendo información del curso:", err);
+        }
+
         // 1) Preguntas del curso
         const res = await api.get(`/questions/${courseId}`);
         const courseQuestions = res.data || [];
@@ -48,14 +62,26 @@ export default function TeacherCourseView() {
           return;
         }
 
-        // 2) answers/all para mapear answerId -> questionId
+        // 2) answers/all para mapear answerId -> questionId y contar respuestas por pregunta
         const answersRes = await api.get("/answers/all");
         const allAnswers = answersRes.data || [];
 
         const answerIdToQuestionId = new Map();
+        const questionIdToAnswerCount = new Map();
+        const questionIdToGradedCount = new Map();
+
         for (const a of allAnswers) {
           if (a?.id == null || a?.questionId == null) continue;
-          answerIdToQuestionId.set(Number(a.id), Number(a.questionId));
+          const qId = Number(a.questionId);
+          answerIdToQuestionId.set(Number(a.id), qId);
+          
+          // Contar respuestas por pregunta
+          questionIdToAnswerCount.set(qId, (questionIdToAnswerCount.get(qId) || 0) + 1);
+          
+          // Contar respuestas corregidas (con grade !== null)
+          if (a?.grade !== null && a?.grade !== undefined) {
+            questionIdToGradedCount.set(qId, (questionIdToGradedCount.get(qId) || 0) + 1);
+          }
         }
 
         // 3) recorrections pendientes (newGrade === null)
@@ -82,6 +108,12 @@ export default function TeacherCourseView() {
         // 4) Formateo final (✅ fecha + hora)
         const formatted = courseQuestions.map((q) => {
           const hasPending = questionsWithPendingRecorrections.has(Number(q.id));
+          const qId = Number(q.id);
+          
+          // Calcular respuestas recibidas y corregidas desde los datos reales
+          const numAnswers = questionIdToAnswerCount.get(qId) || 0;
+          const numGraded = questionIdToGradedCount.get(qId) || 0;
+          const hasUncorrected = numAnswers > 0 && numGraded < numAnswers;
 
           return {
             id: q.id,
@@ -97,7 +129,30 @@ export default function TeacherCourseView() {
             endDatetimeRaw: q.endDatetime || null,
 
             status: q.isPublished ? "PUBLICADA" : "SIN PUBLICAR",
-            answers: `${q.numAnswers || 0}/${q.numStudents || 0}`,
+            answers: `${numAnswers}/${courseNumStudents || 0}`,
+
+            correctionStatus: numAnswers === 0 ? (
+              <span
+                title="No hay respuestas recibidas"
+                className="inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 px-2 py-1 text-[11px] font-semibold"
+              >
+                ⏳ Sin respuestas
+              </span>
+            ) : hasUncorrected ? (
+              <span
+                title="Hay respuestas pendientes de corrección"
+                className="inline-flex items-center gap-1 rounded-full bg-red-100 text-red-800 px-2 py-1 text-[11px] font-semibold"
+              >
+                ⚠️ Pendiente
+              </span>
+            ) : (
+              <span
+                title="Todas las respuestas están corregidas"
+                className="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-800 px-2 py-1 text-[11px] font-semibold"
+              >
+                ✅ Corregidas
+              </span>
+            ),
 
             recorrectionsStatus: hasPending ? (
               <span

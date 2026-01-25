@@ -7,6 +7,11 @@ import { api } from "../../../../lib/axios";
 import { useAuth } from "../../../../context/AuthProvider";
 import PseudoGuidelineInfo from "../../../../components/PseudoGuidelineInfo";
 
+function datetimeLocalToIsoUtc(datetimeLocalValue) {
+  const d = new Date(datetimeLocalValue);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
 
 export default function CreateQuestion() {
   const { courseId } = useParams();
@@ -17,7 +22,6 @@ export default function CreateQuestion() {
   const sidebarName = user?.fullName || user?.name || "Usuario";
 
   const [pseudoGuideline, setPseudoGuideline] = useState("");
-
 
   const [title, setTitle] = useState("");
   const [days, setDays] = useState(0);
@@ -48,12 +52,28 @@ export default function CreateQuestion() {
         return null;
       }
 
+      const startDatetime = datetimeLocalToIsoUtc(dueDate);
+      if (!startDatetime) {
+        alert("La fecha ingresada no es válida.");
+        return null;
+      }
+
+      let endDatetime = null;
+      if (startDatetime && totalDurationSeconds > 0) {
+        const start = new Date(startDatetime);
+        if (!Number.isNaN(start.getTime())) {
+          const end = new Date(start.getTime() + totalDurationSeconds * 1000);
+          endDatetime = end.toISOString();
+        }
+      }
+
       const body = {
         title,
         courseId: Number(courseId),
         content,
         duration: totalDurationSeconds || null,
-        endDatetime: dueDate ? new Date(dueDate).toISOString() : null,
+        startDatetime, // ✅ inicio real
+        endDatetime,   // ✅ fin real
         pseudoGuideline: pseudoGuideline?.trim() ? pseudoGuideline.trim() : null,
       };
 
@@ -71,7 +91,10 @@ export default function CreateQuestion() {
   const handleCreate = async () => {
     const created = await handleSave();
     if (!created?.id) return;
-    navigate(`/teacher-profile/course-view/${courseId}/question/${created.id}`, { state: { backTo: `/teacher-profile/course-view/${courseId}` }, replace: true, });
+    navigate(`/teacher-profile/course-view/${courseId}/question/${created.id}`, {
+      state: { backTo: `/teacher-profile/course-view/${courseId}` },
+      replace: true,
+    });
   };
 
   const handleCancel = () => {

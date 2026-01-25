@@ -279,10 +279,6 @@ function Register() {
           </div>
         </div>
 
-        <div className="mt-16 border-t border-(--color-border)" />
-        <div className="py-8 text-center text-xs text-(--color-muted)">
-          © {new Date().getFullYear()}— Automatic Correction
-        </div>
       </div>
     </>
   );

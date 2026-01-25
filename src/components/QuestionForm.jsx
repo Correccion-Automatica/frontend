@@ -31,6 +31,21 @@ function getEndDateLabel(startDateIso, days, hours, minutes) {
   });
 }
 
+function datetimeLocalToIsoUtc(datetimeLocalValue) {
+  const d = new Date(datetimeLocalValue);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+function isoUtcToDatetimeLocal(isoUtc) {
+  if (!isoUtc) return "";
+  const d = new Date(isoUtc);
+  if (Number.isNaN(d.getTime())) return "";
+  const tzOffsetMs = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+}
+
+
+
 export default function QuestionForm({
   title,
   setTitle,
@@ -358,19 +373,27 @@ export default function QuestionForm({
         (Number(hours) || 0) * 3600 +
         (Number(minutes) || 0) * 60;
 
-      let endDatetime = null;
-      if (dueDate && durationSeconds > 0) {
-        const start = new Date(dueDate);
-        if (!Number.isNaN(start.getTime())) {
-          const end = new Date(start.getTime() + durationSeconds * 1000);
-          endDatetime = end.toISOString();
-        }
-      }
+const startDatetime = datetimeLocalToIsoUtc(dueDate);
+if (!startDatetime) {
+  alert("La fecha ingresada no es válida.");
+  return;
+}
 
-      let body = {
-        duration: durationSeconds,
-        endDatetime,
-      };
+let endDatetime = null;
+if (startDatetime && durationSeconds > 0) {
+  const start = new Date(startDatetime);
+  if (!Number.isNaN(start.getTime())) {
+    const end = new Date(start.getTime() + durationSeconds * 1000);
+    endDatetime = end.toISOString();
+  }
+}
+
+let body = {
+  duration: durationSeconds,
+  startDatetime, // ✅
+  endDatetime,   // ✅
+};
+
 
       if (!guidelineId) {
         body.title = title;

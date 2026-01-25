@@ -110,42 +110,40 @@ export default function QuestionDetail() {
   }, [user, isAuthenticated, questionId]);
 
   /* ---------------------------------------------------------
- /* ---------------------------------------------------------
- * 2.1) Si hay grade, buscar si existe recorrection asociada a answerId
- * --------------------------------------------------------- */
-useEffect(() => {
-  const fetchRecorrection = async () => {
-    try {
-      setRecorrection(null);
+   * 2.1) Si hay grade, buscar si existe recorrection asociada a answerId
+   * --------------------------------------------------------- */
+  useEffect(() => {
+    const fetchRecorrection = async () => {
+      try {
+        setRecorrection(null);
 
-      const hasGrade =
-        lastAnswer?.grade !== null && lastAnswer?.grade !== undefined;
+        const hasGrade =
+          lastAnswer?.grade !== null && lastAnswer?.grade !== undefined;
 
-      if (!hasGrade || !lastAnswer?.id) return;
+        if (!hasGrade || !lastAnswer?.id) return;
 
-      setRecorrectionLoading(true);
+        setRecorrectionLoading(true);
 
-      // 🔥 NUEVO: traer TODAS las recorreciones
-      const res = await api.get("/recorrection");
-      const allRecorrections = res.data || [];
+        // 🔥 NUEVO: traer TODAS las recorreciones
+        const res = await api.get("/recorrection");
+        const allRecorrections = res.data || [];
 
-      // 🔎 Buscar la que corresponde a esta respuesta
-      const found = allRecorrections.find(
-        (r) => Number(r.answerId) === Number(lastAnswer.id)
-      );
+        // 🔎 Buscar la que corresponde a esta respuesta
+        const found = allRecorrections.find(
+          (r) => Number(r.answerId) === Number(lastAnswer.id)
+        );
 
-      setRecorrection(found || null);
-    } catch (err) {
-      console.error("❌ Error obteniendo recorreción:", err);
-      setRecorrection(null);
-    } finally {
-      setRecorrectionLoading(false);
-    }
-  };
+        setRecorrection(found || null);
+      } catch (err) {
+        console.error("❌ Error obteniendo recorreción:", err);
+        setRecorrection(null);
+      } finally {
+        setRecorrectionLoading(false);
+      }
+    };
 
-  fetchRecorrection();
-}, [lastAnswer?.id, lastAnswer?.grade]);
-
+    fetchRecorrection();
+  }, [lastAnswer?.id, lastAnswer?.grade]);
 
   /* ---------------------------------------------------------
    * 3) Timer
@@ -293,10 +291,12 @@ useEffect(() => {
   /* ---------------------------------------------------------
    * Pregunta vencida
    * --------------------------------------------------------- */
-  const now = new Date();
-  const deadline = question.endDatetime ? new Date(question.endDatetime) : null;
+  const now = Date.now();
+  const deadlineMs = question.endDatetime
+    ? new Date(question.endDatetime).getTime()
+    : null;
 
-  if (deadline && now > deadline && !lastAnswer) {
+  if (deadlineMs && now > deadlineMs && !lastAnswer) {
     return (
       <div className="mt-6 px-4 text-center">
         <PageHeader columns={[question.title]} />
@@ -361,6 +361,14 @@ useEffect(() => {
    * NOT_STARTED
    * --------------------------------------------------------- */
   if (status === "NOT_STARTED") {
+    const deadlineText = question.endDatetime
+      ? new Intl.DateTimeFormat("es-CL", {
+          timeZone: "America/Santiago",
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(new Date(question.endDatetime))
+      : "No definida";
+
     return (
       <div className="mt-6 px-4 text-center">
         <PageHeader columns={[question.title]} />
@@ -369,10 +377,7 @@ useEffect(() => {
           <p className="text-lg mb-4 whitespace-pre-line">{question.content}</p>
 
           <p className="mb-2">Duración: {question.duration} segundos.</p>
-          <p className="mb-6">
-            Fecha límite:{" "}
-            {deadline ? deadline.toLocaleDateString("es-CL") : "No definida"}
-          </p>
+          <p className="mb-6">Fecha límite: {deadlineText}</p>
 
           <ButtonPrimary
             onClick={() => {
@@ -391,9 +396,10 @@ useEffect(() => {
    * GRADED — nota + feedback + (si existe) recorrection asociada
    * --------------------------------------------------------- */
   if (isGraded) {
-    const displayedGrade = hasRecorrection && recorrection?.newGrade != null
-      ? recorrection.newGrade
-      : lastAnswer?.grade;
+    const displayedGrade =
+      hasRecorrection && recorrection?.newGrade != null
+        ? recorrection.newGrade
+        : lastAnswer?.grade;
 
     return (
       <div className="mt-6 px-4 text-center">

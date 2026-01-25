@@ -180,10 +180,11 @@ export default function CourseDetail() {
             title: q.title || "Sin título",
             durationHours: secondsToDHMS(q.duration),
             dueDate: q.endDatetime
-              ? new Date(q.endDatetime).toLocaleString("es-CL", {
+              ? new Intl.DateTimeFormat("es-CL", {
+                  timeZone: "America/Santiago",
                   dateStyle: "medium",
                   timeStyle: "short",
-                })
+                }).format(new Date(q.endDatetime))
               : "Sin fecha",
             endDatetimeRaw: q.endDatetime || null,
             status,

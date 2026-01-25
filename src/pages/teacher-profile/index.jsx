@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../../lib/axios";
 import { useAuth } from "../../context/AuthProvider";
+import { useCredits } from "../../context/CreditsContext";
 import { Link, useLocation } from "react-router-dom";
 import { FaHome, FaBook } from "react-icons/fa";
 import { FaQuestionCircle, FaPlus, FaUser } from "react-icons/fa";
@@ -10,6 +11,14 @@ export default function TeacherProfile() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
+  const { credits: ctxCredits, loading: _creditsLoading, refreshCredits } = useCredits();
+
+  // Sincronizar créditos al entrar a la vista de teacher
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      refreshCredits();
+    }
+  }, [isAuthenticated, authLoading, refreshCredits]);
 
   useEffect(() => {
     if (authLoading || !isAuthenticated) return;
@@ -36,7 +45,8 @@ export default function TeacherProfile() {
 
   const teacherName = user?.fullName || user?.name || "Profesor/a";
   const teacherEmail = user?.email || "";
-  const credits = Number(user?.remaining_credits ?? user?.credits ?? 0);
+  const creditsFromUser = Number(user?.remaining_credits ?? user?.credits ?? 0);
+  const credits = Number(ctxCredits ?? creditsFromUser ?? 0);
 
   const navLinks = [
     { to: "/dashboard", label: "Tablero", icon: <FaHome /> },

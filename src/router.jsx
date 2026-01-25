@@ -35,6 +35,7 @@ import CookiesPolicy from './pages/legal/cookies.jsx';
 
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import RequireRole from './components/RequiredRole.jsx';
+import GuidelineStatusListener from './components/GuidelineStatusListener.jsx';
 
 import Purchase from './pages/payments/purchase.jsx';
 import Checkout from './pages/payments/checkout.jsx';
@@ -43,6 +44,7 @@ import PaymentsHistoryPage from './pages/payments/history.jsx';
 export default function Router() {
   return (
     <>
+      <GuidelineStatusListener />
       <Navbar />
       {/* contenedor que asegura que el footer quede al final */}
       <div className="flex flex-col min-h-screen">

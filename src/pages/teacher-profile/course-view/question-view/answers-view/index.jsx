@@ -1,18 +1,18 @@
 // src/pages/teacher-profile/course-view/question-view/answers-view/index.jsx
-import React, { useEffect, useMemo, useState } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useParams } from "react-router-dom";
 import PageHeader from "../../../../../components/PageHeader";
 import CreditOptionDisplay from "../../../../../components/CreditOptionDisplay";
 import ButtonPrimary from "../../../../../components/ButtonPrimary";
 import { api } from "../../../../../lib/axios";
 import { useAuth } from "../../../../../context/AuthProvider";
+import { useCredits } from "../../../../../context/CreditsContext";
 
 export default function AnswersView() {
   const { courseId, questionId } = useParams();
-  const location = useLocation();
-  const numStudents = location.state?.numStudents;
 
   const { user } = useAuth();
+  const { refreshCredits } = useCredits();
   const sidebarCredits = Number(user?.remaining_credits ?? user?.credits ?? 0);
   const sidebarName = user?.fullName || user?.name || "Usuario";
 
@@ -32,6 +32,9 @@ export default function AnswersView() {
   const [loading, setLoading] = useState(true);
   const [correctingAll, setCorrectingAll] = useState(false);
   const [error, setError] = useState(null);
+  
+  // ✅ Ref para prevenir múltiples clics en "corregir respuestas"
+  const isCorrectingRef = useRef(false);
 
   // ✅ UI state (lista estudiantes)
   const [nameQuery, setNameQuery] = useState("");
@@ -42,94 +45,94 @@ export default function AnswersView() {
   /* ---------------------------------------------------------
    * 1) Cargar pregunta + pauta + answers + usuarios + recorrections
    * --------------------------------------------------------- */
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        // ---- Pregunta ----
-        const res = await api.get(`/questions/${courseId}`);
-        const found = (res.data || []).find((q) => q.id === Number(questionId));
-        if (!found) {
-          setError("No se encontró la pregunta solicitada.");
-          return;
-        }
-        setQuestion(found);
-
-        // ---- Guideline ----
-        const gl = await api.get("/guidelines");
-        const gFound = (gl.data || []).find(
-          (g) => Number(g.questionId) === Number(questionId)
-        );
-        if (gFound) setGuidelineId(gFound.id);
-
-        // ---- Answers (teacher) ----
-        const ans = await api.get(`/answers/${questionId}/teacher`);
-        const answersData = ans.data || [];
-        setAnswers(answersData);
-
-        // Preselección: primera respuesta si existe
-        if (answersData.length > 0) {
-          setSelectedAnswerId(Number(answersData[0].id));
-        } else {
-          setSelectedAnswerId(null);
-        }
-
-        // ---- Usuarios ----
-        const users = await api.get("/users/all");
-        const map = {};
-        (users.data || []).forEach((u) => {
-          map[u.id] = u.fullName;
-        });
-        setUsersMap(map);
-
-        // ---- Recorrections ----
-        // ✅ Si el backend responde 404 cuando no hay recorrecciones,
-        // lo tratamos como lista vacía y NO como error.
-        let recs = [];
-        try {
-          const rec = await api.get("/recorrection");
-          recs = rec.data || [];
-        } catch (err) {
-          const status = err?.response?.status;
-          if (status === 404) recs = [];
-          else throw err;
-        }
-
-        // Mapear por answerId (si viene duplicado, tomamos el último por id)
-        const recMap = {};
-        for (const r of recs) {
-          if (!r?.answerId) continue;
-          const key = Number(r.answerId);
-          if (!recMap[key] || Number(r.id) > Number(recMap[key].id)) {
-            recMap[key] = r;
-          }
-        }
-        setRecorrectionByAnswerId(recMap);
-
-        // Inicializar formulario (solo para recorrecciones pendientes)
-        const formInit = {};
-        for (const a of answersData) {
-          const r = recMap[Number(a.id)];
-          if (r && r.newGrade === null) {
-            formInit[Number(a.id)] = {
-              newGrade: "",
-              teachersFeedback: "",
-            };
-          }
-        }
-        setRecorrectionForm(formInit);
-      } catch (err) {
-        console.error("❌ Error:", err);
-        setError("Error al cargar la información.");
-      } finally {
-        setLoading(false);
+      // ---- Pregunta ----
+      const res = await api.get(`/questions/${courseId}`);
+      const found = (res.data || []).find((q) => q.id === Number(questionId));
+      if (!found) {
+        setError("No se encontró la pregunta solicitada.");
+        return;
       }
-    };
+      setQuestion(found);
 
-    loadData();
+      // ---- Guideline ----
+      const gl = await api.get("/guidelines");
+      const gFound = (gl.data || []).find(
+        (g) => Number(g.questionId) === Number(questionId)
+      );
+      if (gFound) setGuidelineId(gFound.id);
+
+      // ---- Answers (teacher) ----
+      const ans = await api.get(`/answers/${questionId}/teacher`);
+      const answersData = ans.data || [];
+      setAnswers(answersData);
+
+      // Preselección: primera respuesta si existe
+      if (answersData.length > 0) {
+        setSelectedAnswerId(Number(answersData[0].id));
+      } else {
+        setSelectedAnswerId(null);
+      }
+
+      // ---- Usuarios ----
+      const users = await api.get("/users/all");
+      const map = {};
+      (users.data || []).forEach((u) => {
+        map[u.id] = u.fullName;
+      });
+      setUsersMap(map);
+
+      // ---- Recorrections ----
+      // ✅ Si el backend responde 404 cuando no hay recorrecciones,
+      // lo tratamos como lista vacía y NO como error.
+      let recs = [];
+      try {
+        const rec = await api.get("/recorrection");
+        recs = rec.data || [];
+      } catch (err) {
+        const status = err?.response?.status;
+        if (status === 404) recs = [];
+        else throw err;
+      }
+
+      // Mapear por answerId (si viene duplicado, tomamos el último por id)
+      const recMap = {};
+      for (const r of recs) {
+        if (!r?.answerId) continue;
+        const key = Number(r.answerId);
+        if (!recMap[key] || Number(r.id) > Number(recMap[key].id)) {
+          recMap[key] = r;
+        }
+      }
+      setRecorrectionByAnswerId(recMap);
+
+      // Inicializar formulario (solo para recorrecciones pendientes)
+      const formInit = {};
+      for (const a of answersData) {
+        const r = recMap[Number(a.id)];
+        if (r && r.newGrade === null) {
+          formInit[Number(a.id)] = {
+            newGrade: "",
+            teachersFeedback: "",
+          };
+        }
+      }
+      setRecorrectionForm(formInit);
+    } catch (err) {
+      console.error("❌ Error:", err);
+      setError("Error al cargar la información.");
+    } finally {
+      setLoading(false);
+    }
   }, [courseId, questionId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   /* ---------------------------------------------------------
    * 2) Descargar pauta
@@ -216,7 +219,13 @@ export default function AnswersView() {
    * 3) Corregir TODAS las respuestas (auto)
    * --------------------------------------------------------- */
   const handleCorrectAll = async () => {
+    // ✅ Prevenir múltiples clics
+    if (isCorrectingRef.current || correctingAll) {
+      return;
+    }
+
     try {
+      isCorrectingRef.current = true;
       setCorrectingAll(true);
 
       for (const ans of answers) {
@@ -228,10 +237,17 @@ export default function AnswersView() {
       }
 
       alert("✔ Todas las respuestas fueron enviadas a corrección.");
+      
+      // ✅ Recargar los datos para actualizar la vista
+      await loadData();
+      
+      // ✅ Recargar los créditos para actualizar el contexto
+      await refreshCredits();
     } catch (err) {
       console.error("❌ Error corrigiendo:", err);
       alert("Hubo un error corrigiendo las respuestas.");
     } finally {
+      isCorrectingRef.current = false;
       setCorrectingAll(false);
     }
   };
@@ -239,6 +255,46 @@ export default function AnswersView() {
   /* ---------------------------------------------------------
    * 4) Promedio de notas + helpers
    * --------------------------------------------------------- */
+  // ✅ Función para extraer el puntaje máximo del feedback (similar al backend)
+  const extractMaxScoreFromFeedback = (feedback) => {
+    if (!feedback || typeof feedback !== 'string') return null;
+
+    // Buscar patrones como "X/Y" donde Y es el máximo
+    let re = /Puntuación Final[\s\S]{0,80}?([0-9]{1,3})\s*\/\s*([0-9]{1,3})/i;
+    let m = feedback.match(re);
+    if (m) return parseInt(m[2], 10);
+
+    re = /Puntuación Final[\s\S]{0,80}?Total[:\s]*([0-9]{1,3})\s*\/\s*([0-9]{1,3})/i;
+    m = feedback.match(re);
+    if (m) return parseInt(m[2], 10);
+
+    re = /Total[:\s]*([0-9]{1,3})\s*\/\s*([0-9]{1,3})/i;
+    m = feedback.match(re);
+    if (m) return parseInt(m[2], 10);
+
+    return null;
+  };
+
+  // ✅ Obtener maxScore de la pregunta o del feedback de respuestas corregidas
+  const maxScore = useMemo(() => {
+    // Primero intentar desde la pregunta (si viene del backend)
+    if (question?.maxScore != null) return Number(question.maxScore);
+    if (question?.max_score != null) return Number(question.max_score);
+
+    // Si no, intentar extraerlo del feedback de alguna respuesta corregida
+    for (const ans of answers) {
+      if (ans?.assistantFeedback) {
+        const extracted = extractMaxScoreFromFeedback(ans.assistantFeedback);
+        if (extracted != null && extracted > 0) {
+          return extracted;
+        }
+      }
+    }
+
+    // Fallback a 10 si no se encuentra
+    return 10;
+  }, [question, answers]);
+
   const gradedAnswers = useMemo(() => {
     return answers
       .map((a) => {
@@ -370,10 +426,11 @@ export default function AnswersView() {
         const gradeToShow =
           r && r.newGrade !== null && r.newGrade !== undefined ? r.newGrade : ans.grade;
 
+        // ✅ Mostrar puntaje como "X/Y" donde Y es el maxScore
         const gradeLabel =
           gradeToShow === null || gradeToShow === undefined
             ? "—"
-            : Number(gradeToShow).toFixed(2);
+            : `${Number(gradeToShow).toFixed(2)}/${maxScore}`;
 
         return {
           id: Number(ans.id),
@@ -388,7 +445,7 @@ export default function AnswersView() {
         if (!q) return true;
         return String(row.name || "").toLowerCase().includes(q);
       });
-  }, [answers, usersMap, recorrectionByAnswerId, nameQuery]);
+  }, [answers, usersMap, recorrectionByAnswerId, nameQuery, maxScore]);
 
   const total = studentRows.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -612,20 +669,13 @@ export default function AnswersView() {
                     {avgGrade === "__" ? "—" : `${avgGrade}`}
                     <span className="text-sm font-semibold text-(--color-muted)">
                       {" "}
-                      / 10
+                      / {maxScore}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="rounded-xl border border-(--color-border) bg-(--color-background) p-4">
-                  <div className="text-xs text-(--color-muted)">Respuestas</div>
-                  <div className="text-lg font-semibold">
-                    {answers.length}/{numStudents ?? question?.numStudents ?? 0}
-                  </div>
-                </div>
-
+              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="rounded-xl border border-(--color-border) bg-(--color-background) p-4">
                   <div className="text-xs text-(--color-muted)">Corregidas</div>
                   <div className="text-lg font-semibold">

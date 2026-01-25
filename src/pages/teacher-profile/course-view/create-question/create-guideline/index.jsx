@@ -1,12 +1,16 @@
+// CreateGuideline.jsx
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import ChatMessage from "../../../../../components/ChatMessage";
 import ChatActions from "../../../../../components/ChatActions";
 import PageHeader from "../../../../../components/PageHeader";
 import ButtonPrimary from "../../../../../components/ButtonPrimary";
 import CreditOptionDisplay from "../../../../../components/CreditOptionDisplay";
+// CreditSummaryCard moved to sidebar (CreditOptionDisplay)
+import CreditSummaryCard from "../../../../../components/CreditSummaryCard";
 import { api } from "../../../../../lib/axios";
 import { useAuth } from "../../../../../context/AuthProvider";
+import { useCredits } from "../../../../../context/CreditsContext";
 import gsap from "gsap";
 
 export default function CreateGuideline() {
@@ -20,9 +24,13 @@ export default function CreateGuideline() {
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState("intro"); // intro | loading | ready | editing | done
   const [question, setQuestion] = useState(null);
+  const [allowancePre, setAllowancePre] = useState(null);
+  const [allowancePost, setAllowancePost] = useState(null);
+  const [iterationsPossible, setIterationsPossible] = useState(null);
+  const { refreshCredits } = useCredits();
 
   const [fase1ResponseId, setFase1ResponseId] = useState(null);
-  const [guidelineId, setGuidelineId] = useState(null);
+  const [_guidelineId, setGuidelineId] = useState(null);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const messagesEndRef = React.useRef(null);
 
@@ -37,7 +45,7 @@ export default function CreateGuideline() {
     "Aplicando observaciones del docente…",
     "Preparando versión final de criterios…",
   ];
-  const [loadingText, setLoadingText] = useState(loadingPhrases[0]);
+  const [loadingText, _setLoadingText] = useState(loadingPhrases[0]);
 
   // removed interval-based text cycling; GSAP will handle loading animations
 
@@ -87,11 +95,59 @@ export default function CreateGuideline() {
     fetchQuestion();
   }, [courseId, questionId]);
 
+  // Consultar al backend si el usuario tiene créditos y cuántas ediciones permite
+  const fetchAllowance = async () => {
+    try {
+      const res = await api.get("/guidelines/calculate");
+      const { pre, post } = res.data || {};
+      setAllowancePre(pre || null);
+      setAllowancePost(post || null);
+      // compute iterations possible based on full-cost (fase1 + finish)
+      if (pre && typeof pre.remainingCredits === "number") {
+        const fase1 = Number(pre.fase1Cost || 0);
+        const finish = Number(pre.finishCost || 0);
+        const denom = fase1 + finish;
+        const iters =
+          denom > 0
+            ? Math.floor((Number(pre.remainingCredits) || 0) / denom)
+            : 0;
+        setIterationsPossible(iters);
+      } else {
+        setIterationsPossible(null);
+      }
+
+      return pre || null;
+    } catch (err) {
+      console.error("❌ Error obteniendo allowance de créditos:", err);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    fetchAllowance();
+    // also consider re-fetching when question or user changes
+  }, []);
+
   /** ------------------------------------------------------------------
    *  2) FASE 1 — Se activa al presionar “Comenzar criterio de evaluación”
    * ------------------------------------------------------------------ */
   const handleStart = async () => {
     if (!question) return;
+
+    // ensure we have allowance info
+    const pre = allowancePre || (await fetchAllowance());
+    if (!pre || !pre.canProceed) {
+      setMessages([
+        {
+          id: Date.now(),
+          role: "assistant",
+          content:
+            "No tienes créditos suficientes para generar la pauta. Por favor, recarga tu cuenta.",
+        },
+      ]);
+      setStatus("intro");
+      return;
+    }
 
     setStatus("loading");
 
@@ -112,6 +168,15 @@ export default function CreateGuideline() {
         },
       ]);
 
+      // refresh allowance after consuming fase1 cost
+      await fetchAllowance();
+      // update global credits context
+      try {
+        refreshCredits();
+      } catch (err) {
+        void err;
+      }
+
       setStatus("ready");
     } catch (err) {
       console.error("❌ Error en Fase 1:", err);
@@ -128,48 +193,71 @@ export default function CreateGuideline() {
     }
   };
 
-    /** ------------------------------------------------------------------
+  /** ------------------------------------------------------------------
    *  2.5) FASE 1-EDIT — Se activa al enviar observaciones en modo "editing"
    *  - Llama a POST /guidelines/fase-1-edit
    *  - Continúa desde fase1ResponseId (previous_response_id) y ajusta criterios
    *  - Devuelve criteria + responseId nuevo (se guarda para continuar el flujo)
    * ------------------------------------------------------------------ */
-    const handleSendEdit = async (feedback) => {
-      if (!fase1ResponseId) return;
-    
-      setStatus("loading");
-    
-      try {
-        const res = await api.post("/guidelines/fase-1-edit", {
-          fase1ResponseId,
-          feedback,
-        });
-    
-        setFase1ResponseId(res.data.responseId);
-    
-        // Solo append: conservar historial de user -> assistant -> user -> assistant
-        setMessages((prev) => [
-          ...prev,
-          { id: Date.now(), role: "assistant", content: res.data.criteria },
-        ]);
-    
-        setStatus("ready");
-      } catch (err) {
-        console.error("❌ Error editando criterios:", err);
-    
+  const handleSendEdit = async (feedback) => {
+    if (!fase1ResponseId) return;
+
+    setStatus("loading");
+
+    try {
+      // check allowance for edits
+      const post = allowancePost || (await fetchAllowance());
+      if (!post || (post.maxEdits || 0) <= 0) {
         setMessages((prev) => [
           ...prev,
           {
             id: Date.now(),
             role: "assistant",
-            content:
-              "❌ No se pudo ajustar los criterios en este momento. Intenta nuevamente.",
+            content: "No tienes créditos suficientes para editar la pauta.",
           },
         ]);
-    
         setStatus("ready");
+        return;
       }
-    };
+
+      const res = await api.post("/guidelines/fase-1-edit", {
+        fase1ResponseId,
+        feedback,
+      });
+
+      setFase1ResponseId(res.data.responseId);
+
+      // Solo append: conservar historial de user -> assistant -> user -> assistant
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now(), role: "assistant", content: res.data.criteria },
+      ]);
+
+      // refresh allowance after consuming edit cost
+      await fetchAllowance();
+      // update global credits context
+      try {
+        refreshCredits();
+      } catch (err) {
+        void err;
+      }
+      setStatus("ready");
+    } catch (err) {
+      console.error("❌ Error editando criterios:", err);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          role: "assistant",
+          content:
+            "❌ No se pudo ajustar los criterios en este momento. Intenta nuevamente.",
+        },
+      ]);
+
+      setStatus("ready");
+    }
+  };
 
   /** ------------------------------------------------------------------
    *  3) FINISH FASES — Se activa al confirmar criterios
@@ -184,7 +272,9 @@ export default function CreateGuideline() {
       const bc = new BroadcastChannel("guideline-status");
       bc.postMessage({ type: "guideline_generating", questionId });
       bc.close();
-    } catch (e) {}
+    } catch (err) {
+      void err;
+    }
 
     navigate(-1);
     setStatus("loading");
@@ -211,7 +301,9 @@ export default function CreateGuideline() {
           guidelineId: newId,
         });
         bc.close();
-      } catch (e) {}
+      } catch (err) {
+        void err;
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -233,6 +325,14 @@ export default function CreateGuideline() {
         },
       ]);
 
+      // refresh allowance and global credits after finishing
+      await fetchAllowance();
+      try {
+        refreshCredits();
+      } catch (err) {
+        void err;
+      }
+
       setStatus("done");
     } catch (err) {
       console.error("❌ Error en finish-fases:", err);
@@ -243,7 +343,9 @@ export default function CreateGuideline() {
         const bc = new BroadcastChannel("guideline-status");
         bc.postMessage({ type: "guideline_error", questionId });
         bc.close();
-      } catch (e) {}
+      } catch (err) {
+        void err;
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -298,12 +400,47 @@ export default function CreateGuideline() {
     <div className="mb-6">
       <PageHeader columns={["Creación de pautas"]} showBack={false} />
 
-      <div className="max-w-6xl mx-auto mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="md:col-span-1">
-          <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
+      <div className="max-w-7xl mx-auto mt-6 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
+        {/* Sidebar (desktop/tablet) */}
+        <div className="hidden lg:block">
+          <div className="flex flex-col gap-3 sticky top-6 max-h-[calc(100vh-3rem)] overflow-auto">
+            <CreditOptionDisplay
+              userName={sidebarName}
+              credits={sidebarCredits}
+              isCreditsPending={status === "loading"}
+            />
+
+            <CreditSummaryCard
+              iterations={iterationsPossible ?? 0}
+              maxEdits={Number(allowancePost?.maxEdits ?? 0)}
+            />
+          </div>
         </div>
 
-        <div className="md:col-span-3">
+        {/* Main */}
+        <div>
+          {/* Mobile credits (sticky and compact) */}
+          <div className="lg:hidden sticky top-0 z-20 bg-[var(--color-background)]">
+            <div className="mx-auto max-w-7xl px-4 pt-3 pb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                <div className="w-full">
+                  <CreditOptionDisplay
+                    userName={sidebarName}
+                    credits={sidebarCredits}
+                    isCreditsPending={status === "loading"}
+                  />
+                </div>
+                <div className="w-full">
+                  <CreditSummaryCard
+                    iterations={iterationsPossible ?? 0}
+                    maxEdits={Number(allowancePost?.maxEdits ?? 0)}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="h-px bg-[var(--color-border)] opacity-70" />
+          </div>
+
           <div
             className="p-6 rounded-2xl shadow
                        bg-[var(--color-surface)] text-[var(--color-text)] 
@@ -362,20 +499,83 @@ export default function CreateGuideline() {
                 <ChatActions
                   onConfirm={handleConfirm}
                   onEdit={() => setStatus("editing")}
-                  cost={minCreditsForEdit}
-                  canEdit={500 >= minCreditsForEdit}
+                  cost={allowancePost?.editCost ?? minCreditsForEdit}
+                  canEdit={(allowancePost?.maxEdits || 0) > 0}
                 />
               )}
             </div>
 
             {status === "intro" && (
-              <div className="border-t border-[var(--color-border)] pt-4 flex justify-center">
-                <ButtonPrimary
-                  onClick={handleStart}
-                  className="px-6 py-3 text-base font-semibold"
-                >
-                  ⚙️ Comenzar criterio de evaluación
-                </ButtonPrimary>
+              <div className="border-t border[var(--color-border)] pt-4 flex flex-col items-center gap-3">
+                {/** compute allowance states */}
+                {(() => {
+                  const canStart = Boolean(allowancePre?.canProceed);
+                  const remaining = allowancePre?.remainingCredits ?? sidebarCredits;
+                  const baseCost =
+                    allowancePre?.baseCost ?? allowancePre?.fase1Cost ?? 0;
+                  const editCost =
+                    allowancePost?.editCost ??
+                    allowancePre?.editCost ??
+                    minCreditsForEdit;
+
+                  if (!allowancePre) {
+                    return (
+                      <div className="w-full flex justify-center">
+                        <ButtonPrimary
+                          disabled
+                          className="px-6 py-3 text-base font-semibold opacity-80"
+                        >
+                          Comprobando créditos…
+                        </ButtonPrimary>
+                      </div>
+                    );
+                  }
+
+                  if (!canStart) {
+                    return (
+                      <>
+                        <div className="w-full flex justify-center">
+                          <ButtonPrimary
+                            disabled
+                            className="px-6 py-3 text-base font-semibold bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+                          >
+                            ⚠️ Créditos insuficientes
+                          </ButtonPrimary>
+                        </div>
+
+                        <div className="text-center text-sm text-(--color-muted) max-w-xl">
+                          <p>
+                            Necesitas al menos <strong>{baseCost}</strong>{" "}
+                            créditos (costo base) para generar la pauta.
+                            Actualmente tienes <strong>{remaining}</strong>{" "}
+                            créditos.
+                          </p>
+                          <div className="mt-2">
+                            <Link
+                              to="/payments/purchase"
+                              className="inline-block px-3 py-1 bg-gradient-to-r from-indigo-500 to-blue-500 text-white rounded-md text-sm hover:opacity-90"
+                            >
+                              Comprar créditos
+                            </Link>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  }
+
+                  return (
+                    <>
+                      <div className="w-full flex justify-center">
+                        <ButtonPrimary
+                          onClick={handleStart}
+                          className="px-6 py-3 text-base font-semibold bg-gradient-to-r from-indigo-500 to-blue-500 text-white rounded-2xl shadow-lg hover:from-indigo-600 hover:to-blue-600 transform transition-transform duration-150 hover:-translate-y-0.5"
+                        >
+                          ⚙️ Comenzar criterio de evaluación
+                        </ButtonPrimary>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
 
@@ -402,7 +602,7 @@ export default function CreateGuideline() {
                       name="feedback"
                       placeholder="Escribe tus observaciones…"
                       className="flex-1 p-3 rounded-md border border-[var(--color-border)] 
-                                 bg-[var(--color-background)] focus:ring-2 
+                                 bg[var(--color-background)] focus:ring-2 
                                  focus:ring-[var(--color-primary)]"
                       rows={2}
                     />
