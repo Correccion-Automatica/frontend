@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
+
+const roles = [
+  { title: "estudiante", desc: "ver cursos, responder preguntas y recibir retroalimentación.", pill: "bg-[#e43aff]" },
+  { title: "profesor", desc: "gestionar cursos, crear preguntas y revisar respuestas.", pill: "bg-[#6b8bff]" },
+  { title: "administrador", desc: "gestión de profesores y estadísticas.", pill: "bg-white text-[#0f172a]" },
+];
 
 export default function Login() {
   const { signIn, loading } = useAuth();
@@ -15,223 +21,190 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Mostrar mensaje de éxito si viene del registro
   useEffect(() => {
     if (location.state?.message) {
       setSuccessMessage(location.state.message);
-      if (location.state?.email) {
-        setEmail(location.state.email);
-      }
-      // Limpiar el state para que no se muestre en futuros reloads
+      if (location.state?.email) setEmail(location.state.email);
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
   const handleSubmit = async (e) => {
-    console.log("submit");
-
     e.preventDefault();
     setError("");
-    setSubmitting(true); 
+    setSubmitting(true);
 
     try {
       const user = await signIn(email, password);
-      console.log("Usuario autenticado:", user);
       if (!user) throw new Error("No se pudo obtener el usuario");
 
       const role = (user.role || user.firstRole || "").toLowerCase();
-
-      switch (role) {
-        case "student":
-          navigate("/student-profile");
-          break;
-        case "teacher":
-          navigate("/teacher-profile");
-          break;
-        case "admin":
-          navigate("/admin-dashboard");
-          break;
-        case "aux-teacher":
-          navigate("/teacher-profile");
-          break;
-        default:
-          navigate("/");
-      }
+      if (role.includes("student")) navigate("/student-profile");
+      else if (role.includes("teacher")) navigate("/teacher-profile");
+      else if (role.includes("admin")) navigate("/admin-dashboard");
+      else if (role.includes("aux-teacher")) navigate("/teacher-profile");
+      else navigate("/");
     } catch (err) {
       console.error("Error de login:", err);
-
       let message = "Error al iniciar sesión. Intenta nuevamente.";
 
-      // Si el servidor responde con un código HTTP
       const status = err?.response?.status;
+      if (status === 401) message = "Correo o contraseña incorrectos. Por favor, verifica tus datos.";
+      else if (status === 403) message = "Tu cuenta no tiene permisos para acceder. Contacta al administrador.";
+      else if (status === 404) message = "No se encontró el usuario. Verifica el correo ingresado.";
+      else if (status >= 500) message = "Error del servidor. Intenta nuevamente en unos minutos.";
+      else if (err?.code === "auth/invalid-email") message = "El formato del correo electrónico no es válido.";
+      else if (err?.code === "auth/wrong-password") message = "La contraseña es incorrecta.";
+      else if (err?.code === "auth/user-not-found") message = "No existe una cuenta con este correo electrónico.";
 
-      if (status === 401) {
-        message = "Correo o contraseña incorrectos. Por favor, verifica tus datos.";
-      } else if (status === 403) {
-        message = "Tu cuenta no tiene permisos para acceder. Contacta al administrador.";
-      } else if (status === 404) {
-        message = "No se encontró el usuario. Verifica el correo ingresado.";
-      } else if (status >= 500) {
-        message = "Error del servidor. Intenta nuevamente en unos minutos.";
-      } else if (err?.code === "auth/invalid-email") {
-        message = "El formato del correo electrónico no es válido.";
-      } else if (err?.code === "auth/wrong-password") {
-        message = "La contraseña es incorrecta.";
-      } else if (err?.code === "auth/user-not-found") {
-        message = "No existe una cuenta con este correo electrónico.";
-      }
       setError(message);
-
-      setSubmitting(false); 
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const busy = loading || submitting; 
+  const busy = loading || submitting;
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-(--color-background) transition-colors duration-300"
+      className="min-h-screen w-full bg-[#f6f7fb] flex items-center justify-center px-4 py-10"
       style={{ fontFamily: "Inter, Arial, sans-serif" }}
     >
-      <div className="flex flex-col lg:flex-row w-full max-w-6xl bg-(--color-surface) rounded-2xl lg:rounded-3xl shadow-2xl overflow-hidden min-h-[500px] lg:min-h-[600px] transition-colors duration-300">
+      <div className="w-full max-w-[1400px] min-h-[90vh] grid grid-cols-1 lg:grid-cols-2 rounded-[32px] overflow-hidden shadow-[0_30px_90px_rgba(15,23,42,0.18)] bg-white">
         {/* Panel izquierdo */}
-        <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-8 lg:p-12 bg-(--color-elevated)">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-(--color-text) mb-4 lg:mb-6 text-center">
-            Inicia sesión
-          </h1>
-          <p className="text-(--color-muted) text-sm sm:text-base lg:text-lg text-center mb-4 lg:mb-6 max-w-sm lg:max-w-md">
-            Accede a tu cuenta para continuar con tu aprendizaje y evaluaciones personalizadas.
-          </p>
-          <p className="text-(--color-text) text-sm sm:text-base text-center mb-4 lg:mb-6">
-            ¿No tienes cuenta?{" "}
-            <a
-              href="/register"
-              className="text-blue-600 dark:text-blue-400 font-semibold hover:underline transition-colors"
-            >
-              Regístrate aquí.
-            </a>
-          </p>
-          <div className="bg-(--color-surface) rounded-xl shadow-lg p-4 sm:p-6 max-w-sm lg:max-w-md text-left w-full border border-(--color-border)">
-            <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-              <li className="flex items-start sm:items-center">
-                <span
-                  className="text-white rounded px-2 py-1 text-xs font-medium mr-2 flex-shrink-0"
-                  style={{ background: "#6C63FF" }}
+        <div
+          className="relative w-full h-full px-6 lg:px-12 py-12 text-white flex items-center"
+          style={{
+            background: "linear-gradient(135deg, #1a0b2a 0%, #28134d 45%, #1f4a8b 100%)",
+          }}
+        >
+          <div
+            className="absolute inset-0 opacity-90 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(circle at 20% 30%, rgba(255,255,255,0.08), transparent 35%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.06), transparent 40%)",
+            }}
+          />
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute w-[900px] h-[900px] rounded-full border border-white/6 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute w-[760px] h-[760px] rounded-full border border-white/8 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute w-[620px] h-[620px] rounded-full border border-white/10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute w-[480px] h-[480px] rounded-full border border-white/10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute w-[1080px] h-[1080px] rounded-full border border-white/4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          </div>
+
+          <div className="relative z-10 w-full max-w-[620px] mx-auto text-left space-y-6">
+            <div className="space-y-3">
+              <h1 className="text-[34px] lg:text-[40px] font-bold leading-tight">Nos alegra verte de nuevo!</h1>
+              <p className="text-white/85 text-sm lg:text-base max-w-xl leading-relaxed">
+                Accede a tu cuenta para continuar con tu aprendizaje y evaluaciones personalizadas.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {roles.map((item) => (
+                <div
+                  key={item.title}
+                  className="flex items-center gap-3 rounded-2xl border border-white/12 bg-white/10 backdrop-blur-md px-4 py-2.5"
                 >
-                  estudiante
-                </span>
-                <span className="text-(--color-muted)">
-                  ver cursos, responder preguntas y recibir retroalimentación.
-                </span>
-              </li>
-              <li className="flex items-start sm:items-center">
-                <span
-                  className="text-white rounded px-2 py-1 text-xs font-medium mr-2 flex-shrink-0"
-                  style={{ background: "#A259FF" }}
-                >
-                  profesor
-                </span>
-                <span className="text-(--color-muted)">
-                  gestionar cursos, crear preguntas y revisar respuestas.
-                </span>
-              </li>
-              <li className="flex items-start sm:items-center">
-                <span className="bg-(--color-border) text-(--color-text) rounded px-2 py-1 text-xs font-medium mr-2 flex-shrink-0">
-                  administrador
-                </span>
-                <span className="text-(--color-muted)">
-                  gestión de profesores y estadísticas.
-                </span>
-              </li>
-            </ul>
+                  <span className={`px-3 py-1 rounded-md text-xs font-semibold text-purple ${item.pill}`}>
+                    {item.title}
+                  </span>
+                  <p className="text-white/80 text-sm leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Panel derecho */}
-        <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-8 lg:p-12 bg-(--color-surface)">
-          <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6">
+        <div className="w-full h-full flex items-center justify-center px-6 sm:px-8 lg:px-12 py-10 bg-white">
+          <div className="w-full max-w-2xl space-y-6">
             {successMessage && (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded-lg text-sm">
+              <div className="rounded-xl bg-green-50 px-4 py-3 text-green-700 text-sm font-semibold">
                 {successMessage}
               </div>
             )}
-
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg text-sm">
+              <div className="rounded-xl bg-red-50 px-4 py-3 text-red-700 text-sm font-semibold">
                 {error}
               </div>
             )}
 
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm sm:text-base font-semibold text-(--color-text) mb-2"
-              >
-                Email <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={busy} 
-                className={`w-full px-4 py-3 rounded-lg border border-(--color-border) bg-(--color-background) text-(--color-text) placeholder-(--color-muted) text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                  busy ? "opacity-50 cursor-not-allowed" : "" 
-                }`}
-                placeholder="tu@email.com"
-              />
-            </div>
+            <p className="text-sm font-semibold text-[#0f172a]">Ingresa tus credenciales para continuar</p>
 
-            {/* Campo contraseña con mostrar/ocultar */}
-            <div className="relative">
-              <label
-                htmlFor="password"
-                className="block text-sm sm:text-base font-semibold text-(--color-text) mb-2"
-              >
-                Contraseña <span className="text-red-500">*</span>
-              </label>
-              <input
-                type={showPwd ? "text" : "password"}
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={busy} 
-                className={`w-full px-4 py-3 rounded-lg border border-(--color-border) bg-(--color-background) text-(--color-text) placeholder-(--color-muted) text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                  busy ? "opacity-50 cursor-not-allowed" : "" 
-                }`}
-                placeholder="••••••••"
-              />
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="email" className="text-sm font-semibold text-[#0f172a]">
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full h-12 rounded-xl border border-[#d1d5db] bg-white text-[#0f172a] px-4 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6]"
+                  placeholder="tu@email.com"
+                  autoComplete="email"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label htmlFor="password" className="text-sm font-semibold text-[#0f172a]">
+                  Contraseña <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPwd ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="w-full h-12 rounded-xl border border-[#d1d5db] bg-white text-[#0f172a] px-4 pr-12 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6]"
+                    placeholder="********"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd((prev) => !prev)}
+                    className="absolute inset-y-0 right-3 flex items-center text-sm text-[#64748b] hover:text-[#0f172a]"
+                  >
+                    {showPwd ? "Ocultar" : "Mostrar"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-sm text-[#64748b]">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="rounded border-[#cbd5e1] text-[#2E8FE6] focus:ring-[#2E8FE6]"
+                    disabled
+                  />
+                  Recordar sesión
+                </label>
+                <Link to="#" className="text-[#2563eb] font-semibold hover:underline">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
+
               <button
-                type="button"
-                onClick={() => setShowPwd((s) => !s)}
-                className="absolute right-3 top-1/2 text-slate-500 hover:text-slate-700"
-                aria-label={showPwd ? "Ocultar contraseña" : "Mostrar contraseña"}
+                type="submit"
+                disabled={busy}
+                className="w-full h-12 rounded-xl bg-[#0f172a] text-white font-semibold hover:bg-[#111827] transition disabled:opacity-60 disabled:cursor-not-allowed shadow-[0_10px_30px_rgba(15,23,42,0.25)]"
               >
-                {showPwd ? "Ocultar" : "Mostrar"}
+                {busy ? "Ingresando..." : "Iniciar sesión"}
               </button>
-            </div>
 
-            <button
-              type="submit"
-              disabled={busy} 
-              className={`w-full py-3 sm:py-4 text-base sm:text-lg font-bold rounded-lg transition-all duration-200 shadow-lg hover:cursor-pointer ${
-                busy 
-                  ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                  : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-xl transform hover:-translate-y-0.5"
-              }`}
-            >
-              {busy ? "Iniciando sesión..." : "Iniciar sesión"} 
-            </button>
-
-            <div className="text-center text-sm sm:text-base text-gray-600">
-              ¿No tienes cuenta?{" "}
-              <a href="/register" className="text-blue-600 font-semibold hover:underline">
-                Regístrate aquí
-              </a>
-            </div>
-          </form>
+              <div className="text-center text-sm text-[#0f172a]">
+                ¿No tienes cuenta?{" "}
+                <Link to="/register" className="text-[#2563eb] font-semibold hover:underline">
+                  Regístrate aquí
+                </Link>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
