@@ -3,37 +3,37 @@ import { useNavigate } from "react-router-dom";
 
 const plans = [
   {
-    name: 'Explorador',
-    price: '$0',
-    period: '/ mes. Uso único.',
-    badge: 'Ideal para emprender',
-    description: 'Empezar tu viaje con Automatic Correction',
-    features: ['400 créditos'],
-    buttonText: 'Comenzar gratis',
-    buttonStyle: 'secondary',
-    buttonAction: 'register',
+    name: "Explorador",
+    price: "$0",
+    period: "/ mes. Uso único.",
+    badge: "Ideal para emprender",
+    description: "Empezar tu viaje con Automatic Correction. ",
+    features: ["400 créditos", "1 pauta", "40 correcciones", "Soporte por correo"],
+    buttonText: "Comenzar gratis",
+    buttonStyle: "secondary",
+    buttonAction: "register",
   },
   {
-    name: 'Impulsor',
-    price: '$4.990',
-    period: '/ mes',
-    badge: 'Más popular',
-    description: 'Docentes que innovan en preguntas y corrigen automáticamente',
-    features: ['1 200 créditos'],
-    buttonText: 'Suscribirme',
-    buttonStyle: 'featured',
-    buttonAction: 'register',
+    name: "Impulsor",
+    price: "$4.990",
+    period: "/ mes",
+    badge: "Más popular",
+    description: "Innovar por medio de la automatización.",
+    features: ["1 200 créditos", "3 pautas", "120 correcciones", "Soporte por correo"],
+    buttonText: "Suscribirme",
+    buttonStyle: "featured",
+    buttonAction: "register",
   },
   {
-    name: 'Automatizador',
-    price: '$3.990',
-    period: ' x Docente o Curso',
-    badge: 'Ideal para organizaciones',
-    description: 'Organizaciones, colegios o universidades',
-    features: ['1 330 créditos por Docente o Curso'],
-    buttonText: 'Suscribirme',
-    buttonStyle: 'featured',
-    buttonAction: 'register',
+    name: "Automatizador",
+    price: "$3.990",
+    period: " x Docente o Curso",
+    badge: "Ideal para organizaciones",
+    description: "Organizaciones, colegios o universidades.",
+    features: ["1 330 créditos por Docente o Curso", "4 pautas", "133 correcciones", "Soporte por correo"],
+    buttonText: "Suscribirme",
+    buttonStyle: "featured",
+    buttonAction: "register",
   },
 ];
 
@@ -67,21 +67,21 @@ export default function Pricing() {
         <header className="text-center space-y-3">
           <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
             <span className="block">Desbloquea el poder de</span>
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 drop-shadow">
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 via-purple-600 to-pink-300 drop-shadow">
               Automatic Correction
             </span>
           </h1>
-          <p className="text-base md:text-lg text-slate-200 max-w-2xl mx-auto">Una suscripción, todas las plataformas</p>
+          <p className="text-base md:text-lg text-slate-200 max-w-2xl mx-auto">Una plataforma que se adapta a ti</p>
         </header>
 
         <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan) => (
             <article
               key={plan.name}
-              className="rounded-2xl border border-white/10 bg-white/5 shadow-lg shadow-black/30 p-6 flex flex-col transition hover:-translate-y-1 hover:shadow-purple-900/40"
+              className="rounded-2xl border border-white/10 bg-white/5 shadow-lg shadow-black/30 p-6 flex flex-col transition hover:-translate-y-1 hover:shadow-purple-900/40 relative"
             >
               {plan.badge && (
-                <div className="inline-flex items-center rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold mb-3">
+                <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold text-white bg-purple-500/70 backdrop-blur-sm shadow-sm self-center mb-3">
                   {plan.badge}
                 </div>
               )}
@@ -134,8 +134,6 @@ export default function Pricing() {
                   <th className="px-6 py-3 font-medium">Paquete</th>
                   <th className="px-6 py-3 font-medium">Créditos</th>
                   <th className="px-6 py-3 font-medium">Precio</th>
-                  <th className="px-6 py-3 font-medium">CLP/crédito</th>
-                  <th className="px-6 py-3 font-medium">Relación</th>
                 </tr>
               </thead>
               <tbody>
@@ -144,8 +142,6 @@ export default function Pricing() {
                     <td className="px-6 py-4 font-medium text-white">{pack.name}</td>
                     <td className="px-6 py-4">{pack.credits.toLocaleString("es-CL")}</td>
                     <td className="px-6 py-4">{formatCLP(pack.price)}</td>
-                    <td className="px-6 py-4">{pack.pricePerCredit}</td>
-                    <td className="px-6 py-4 text-slate-200/90">{pack.relation}</td>
                   </tr>
                 ))}
               </tbody>
