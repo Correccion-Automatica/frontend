@@ -6,6 +6,7 @@ const statusMap = {
   paid: { label: "Pagado", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200" },
   pending: { label: "Pendiente", className: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200" },
   failed: { label: "Rechazado", className: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200" },
+  rejected: { label: "Rechazado", className: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200" },
 };
 
 const formatCLP = (value) =>
