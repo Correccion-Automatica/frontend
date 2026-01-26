@@ -3,34 +3,34 @@ import { useNavigate } from "react-router-dom";
 
 const plans = [
   {
-    name: 'Free — “Explorador”',
+    name: 'Explorador',
     price: '$0',
     period: '/ mes. Uso único.',
-    badge: null,
-    description: 'Para probar la plataforma',
-    features: ['400 créditos (≈ 1 pauta o 40 correcciones)'],
+    badge: 'Ideal para emprender',
+    description: 'Empezar tu viaje con Automatic Correction',
+    features: ['400 créditos'],
     buttonText: 'Comenzar gratis',
     buttonStyle: 'secondary',
     buttonAction: 'register',
   },
   {
-    name: 'Plan individual — “Impulsor”',
+    name: 'Impulsor',
     price: '$4.990',
     period: '/ mes',
     badge: 'Más popular',
-    description: 'Docentes que hacen preguntas ocasionalmente',
-    features: ['1 200 créditos (≈ 3 pautas o 120 correcciones)'],
+    description: 'Docentes que innovan en preguntas y corrigen automáticamente',
+    features: ['1 200 créditos'],
     buttonText: 'Suscribirme',
     buttonStyle: 'featured',
     buttonAction: 'register',
   },
   {
-    name: 'Enterprise — “Automatizador”',
+    name: 'Automatizador',
     price: '$3.990',
     period: ' x Docente o Curso',
     badge: 'Ideal para organizaciones',
     description: 'Organizaciones, colegios o universidades',
-    features: ['1 330 créditos por Docente o Curso (≈ 4 pautas o 133 correcciones)'],
+    features: ['1 330 créditos por Docente o Curso'],
     buttonText: 'Suscribirme',
     buttonStyle: 'featured',
     buttonAction: 'register',
@@ -38,9 +38,9 @@ const plans = [
 ];
 
 const creditPacks = [
-  { name: "Mini Pack", credits: 500, price: 2900, pricePerCredit: "$5,8", relation: "Para probar" },
-  { name: "Medium Pack", credits: 1000, price: 4900, pricePerCredit: "$4,9", relation: "Más conveniente" },
-  { name: "Max Pack", credits: 1500, price: 6900, pricePerCredit: "$4,6", relation: "Mejor relación" },
+  { name: "Mini Pack", credits: 500, price: 2900 },
+  { name: "Medium Pack", credits: 1000, price: 4900 },
+  { name: "Max Pack", credits: 1500, price: 6900 },
 ];
 
 const formatCLP = (value) =>
@@ -65,7 +65,12 @@ export default function Pricing() {
 
       <div className="relative z-10 flex-1 max-w-6xl mx-auto px-4 py-12 space-y-12">
         <header className="text-center space-y-3">
-          <h1 className="text-3xl md:text-4xl font-bold text-white">Desbloquea el poder de Automatic Correction</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
+            <span className="block">Desbloquea el poder de</span>
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 drop-shadow">
+              Automatic Correction
+            </span>
+          </h1>
           <p className="text-base md:text-lg text-slate-200 max-w-2xl mx-auto">Una suscripción, todas las plataformas</p>
         </header>
 
