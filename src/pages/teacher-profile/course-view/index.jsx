@@ -80,42 +80,46 @@ export default function TeacherCourseView() {
         }
 
         // 4) Formateo final (✅ fecha + hora)
-        const formatted = courseQuestions.map((q) => {
-          const hasPending = questionsWithPendingRecorrections.has(Number(q.id));
+      const formatted = courseQuestions.map((q) => {
+        const hasPending = questionsWithPendingRecorrections.has(Number(q.id));
 
-          return {
-            id: q.id,
-            title: q.title || "Sin título",
+        return {
+          id: q.id,
+          title: q.title || "Sin título",
 
-            dueDate: q.endDatetime
-              ? new Date(q.endDatetime).toLocaleString("es-CL", {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })
-              : "Sin fecha",
+          dueDate: q.endDatetime
+            ? new Date(q.endDatetime).toLocaleString("es-CL", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })
+            : "Sin fecha",
 
-            endDatetimeRaw: q.endDatetime || null,
+          endDatetimeRaw: q.endDatetime || null,
 
-            status: q.isPublished ? "PUBLICADA" : "SIN PUBLICAR",
-            answers: `${q.numAnswers || 0}/${q.numStudents || 0}`,
+          status: q.isPublished ? "PUBLICADA" : "SIN PUBLICAR",
+          answers: String(q.numAnswers ?? 0),
 
-            recorrectionsStatus: hasPending ? (
-              <span
-                title="Tienes recorrecciones pendientes"
-                className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-1 text-[11px] font-semibold"
-              >
-                ❗ Pendiente
-              </span>
-            ) : (
-              <span
-                title="Sin recorrecciones pendientes"
-                className="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-800 px-2 py-1 text-[11px] font-semibold"
-              >
-                ✅ Ok
-              </span>
-            ),
-          };
-        });
+          // ✅ FLAG PARA LA TABLA
+          hasPendingRecorrections: hasPending,
+
+          recorrectionsStatus: hasPending ? (
+            <span
+              title="Tienes recorrecciones pendientes"
+              className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-1 text-[11px] font-semibold"
+            >
+              ❗ Pendiente
+            </span>
+          ) : (
+            <span
+              title="Sin recorrecciones pendientes"
+              className="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-800 px-2 py-1 text-[11px] font-semibold"
+            >
+              ✅ Ok
+            </span>
+          ),
+        };
+      });
+
 
         setQuestions(formatted);
       } catch (err) {
