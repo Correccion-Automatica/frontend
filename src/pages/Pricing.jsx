@@ -57,7 +57,7 @@ export default function Pricing() {
   return (
     <div className="relative min-h-screen flex flex-col bg-gradient-to-br from-[#05030a] via-[#0a0820] to-[#05030a] text-slate-100 overflow-hidden pb-72">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -left-10 top-10 w-96 h-96 bg-purple-700/25 blur-3xl" />
+        <div className="absolute -left-10 top-10 w-96 h-96 bg-purple-800/25 blur-3xl" />
         <div className="absolute right-0 bottom-0 w-[26rem] h-[26rem] bg-fuchsia-500/20 blur-[140px]" />
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[1100px] h-[1100px] bg-purple-500/10 rounded-full blur-[180px]" />
         <div className="absolute inset-x-0 bottom-0 h-[55vh] bg-gradient-to-b from-transparent via-[#05030a]/80 to-[#05030a]" />
@@ -78,7 +78,7 @@ export default function Pricing() {
           {plans.map((plan) => (
             <article
               key={plan.name}
-              className="rounded-2xl border border-white/10 bg-white/5 shadow-lg shadow-black/30 p-6 flex flex-col transition hover:-translate-y-1 hover:shadow-purple-900/40 relative"
+              className="rounded-2xl border border-white/10 bg-black/5 shadow-lg shadow-black/30 p-6 flex flex-col transition hover:-translate-y-1 hover:shadow-purple-900/40 relative"
             >
               {plan.badge && (
                 <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold text-white bg-purple-500/70 backdrop-blur-sm shadow-sm self-center mb-3">
@@ -88,7 +88,7 @@ export default function Pricing() {
 
               <div className="text-center mb-4">
                 <h3 className="text-xl font-semibold text-white">{plan.name}</h3>
-                <p className="text-sm text-slate-200/90 mt-1">{plan.description}</p>
+                <p className="text-sm text-slate-500/90 mt-1">{plan.description}</p>
               </div>
 
               <div className="text-center mb-4">

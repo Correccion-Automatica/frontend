@@ -146,6 +146,8 @@ export default function Purchase() {
                 type="number"
                 min={1}
                 placeholder="Numero de creditos"
+                id="customCredits"
+                name="customCredits"
                 value={customCredits}
                 onChange={(e) => setCustomCredits(e.target.value)}
                 className="border p-2 rounded w-48 bg-[var(--color-background)] text-[var(--color-text)] border-[var(--color-border)]"
