@@ -10,20 +10,26 @@ const principles = [
 ];
 
 const team = [
-  { name: "Trinidad", role: "Backend Developer", bio: "Dedicada a asegurar la satisfacción del cliente y el éxito, con un enfoque proactivo para brindar soporte y retención." },
+  { name: "Trinidad", 
+    role: "Backend Developer", 
+    bio: "Dedicada a asegurar la satisfacción del cliente y el éxito, con un enfoque proactivo para brindar soporte y retención.",
+    quote: "La educación es el arma más poderosa para cambiar el mundo.",
+    linkedin: "https://www.linkedin.com/in/trinidadmp?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app",
+    image: "/images/team/trini.png",},
   {
     name: "Francisco",
     role: "Product Manager",
-    bio: 'Ingeniero PUC con Magister en Ciencias de la Ingenieria, docente universitario y director del proyecto, responsable de la vision estrategica, liderazgo de equipos y ejecucion de iniciativas de alto impacto. "Querer es poder"',
+    bio: 'Ingeniero PUC con Magister en Ciencias de la Ingenieria, docente universitario y director del proyecto, responsable de la vision estrategica, liderazgo de equipos y ejecucion de iniciativas de alto impacto.',
+    quote: "Querer es poder.",
     linkedin: "https://www.linkedin.com/in/francisco-garc%C3%ADa-v/",
     image: "/images/team/francisco.png",
   },
-  { name: "Vicente", role: "Frontend Developer", bio: "Gerente de producto apasionado enfocado en entregar soluciones centradas en el usuario que satisfacen las necesidades del mercado." },
+  { name: "Vicente", role: "Frontend Developer", bio: "Gerente de producto apasionado enfocado en entregar soluciones centradas en el usuario que satisfacen las necesidades del mercado.", quote: "Construir para el usuario, medir y iterar." },
   {
     name: "Pia",
     role: "Frontend Developer",
-    bio: 'Estudiante de Ingeniería Civil Industrial con énfasis en liderazgo social, equidad de género en STEM e innovación educativa, con experiencia en docencia, investigación y gestión colaborativa ',
-    quote: "La educación es el arma más poderosa para cambiar el mundo.",
+    bio: 'Estudiante de Ingeniería Civil Industrial PUC con énfasis en liderazgo social, equidad de género en STEM e innovación educativa, con experiencia en docencia, investigación y gestión colaborativa ',
+    quote: "Construir una sociedad más justa e inclusiva a través de la educación y la tecnología.",
     linkedin: "https://www.linkedin.com/in/pia-ayala-nanjari-b02950211/",
     image: "/images/team/pia.png",
   },
@@ -173,20 +179,22 @@ export default function AboutSimple() {
                   <h3 className="text-lg font-semibold text-white">{m.name}</h3>
                   <p className="text-sm text-purple-300">{m.role}</p>
                 <p className="text-sm text-slate-200 mt-2 leading-relaxed">{m.bio}</p>
+                {(m.quote) && (
+                  <p className="text-sm italic text-purple-200 mt-2">“{m.quote}”</p>
+                )}
                 {m.linkedin && (
                   <a
                     href={m.linkedin}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center justify-center gap-1 text-sm text-blue-300 hover:text-blue-200 underline underline-offset-2 transition pointer-events-auto"
+                    className="inline-flex items-center justify-center gap-1 text-sm text-blue-300 hover:text-blue-200 transition pointer-events-auto"
                     aria-label={`LinkedIn de ${m.name}`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-5 h-5">
                       <path d="M3.65 6H1V15H3.65V6ZM2.33 1A1.56 1.56 0 1 0 2.33 4.11 1.56 1.56 0 1 0 2.33 1ZM15 10.22V15H12.35V10.55C12.35 9.5 11.94 8.79 11 8.79 10.28 8.79 9.85 9.27 9.65 9.73 9.57 9.93 9.55 10.22 9.55 10.51V15H6.9S6.93 6.77 6.9 6H9.55V7.15A2.65 2.65 0 0 1 11.91 6.1C13.67 6.1 15 7.26 15 10.22Z" />
                     </svg>
-                    LinkedIn
-                    </a>
-                  )}
+                  </a>
+                )}
                 </div>
               );
             })}
