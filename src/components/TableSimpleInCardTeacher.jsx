@@ -230,14 +230,19 @@ export default function TableSimpleInCardTeacher({
         {pageItems.map((row) => (
           <div key={row.id} data-anim="row">
             <div
-              className="hidden md:grid
+              className={`hidden md:grid
                 grid-cols-[1fr_200px_140px_120px_190px_64px]
                 items-center gap-3 p-4 rounded-3xl
                 bg-(--color-surface) text-(--color-text)
-                border border-(--color-border)
-                shadow-sm transition-all
-                hover:shadow-lg hover:-translate-y-[1px]"
+                border shadow-sm transition-all
+                hover:shadow-lg hover:-translate-y-[1px]
+                ${
+                  row.hasPendingRecorrections
+                    ? "border-red-500 ring-1 ring-red-200"
+                    : "border-(--color-border)"
+                }`}
             >
+
               <Link
                 to={`${basePath}/${row.id}`}
                 state={backTo ? { backTo } : undefined}
@@ -303,11 +308,15 @@ export default function TableSimpleInCardTeacher({
               state={backTo ? { backTo } : undefined}
               className="md:hidden block"
             >
-              <div
-                className="rounded-3xl bg-(--color-surface) text-(--color-text)
-                  border border-(--color-border) shadow-sm
-                  p-4 transition-all hover:shadow-lg"
-              >
+            <div
+              className={`rounded-3xl bg-(--color-surface) text-(--color-text)
+                border shadow-sm p-4 transition-all hover:shadow-lg
+                ${
+                  row.hasPendingRecorrections
+                    ? "border-red-500 ring-1 ring-red-200"
+                    : "border-(--color-border)"
+                }`}
+            >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-semibold text-base truncate">

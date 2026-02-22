@@ -9,6 +9,23 @@ import PageHeader from "../../../../components/PageHeader";
 import { api } from "../../../../lib/axios";
 import { useAuth } from "../../../../context/AuthProvider";
 
+function formatDuration(seconds) {
+  if (!seconds || seconds <= 0) return "0m";
+
+  const days = Math.floor(seconds / (24 * 3600));
+  const hours = Math.floor((seconds % (24 * 3600)) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  const parts = [];
+
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+
+  return parts.join("");
+}
+
+
 export default function QuestionDetail() {
   const { courseId, questionId } = useParams();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -284,7 +301,6 @@ useEffect(() => {
         <div className="max-w-3xl mx-auto mt-6 p-6 rounded-2xl shadow bg-[var(--color-surface)] border">
           <h2 className="text-2xl font-semibold mb-4">{question.title}</h2>
           <p className="mb-2">⛔ Esta pregunta aún no ha sido publicada.</p>
-          <BackButton label="Volver al curso" />
         </div>
       </div>
     );
@@ -305,7 +321,6 @@ useEffect(() => {
           <p className="text-lg mb-4">
             🚫 Esta pregunta no está disponible porque ya pasó la fecha de entrega.
           </p>
-          <BackButton label="Volver al curso" />
         </div>
       </div>
     );
@@ -368,7 +383,8 @@ useEffect(() => {
           <h2 className="text-2xl font-semibold mb-4">{question.title}</h2>
           <p className="text-lg mb-4 whitespace-pre-line">{question.content}</p>
 
-          <p className="mb-2">Duración: {question.duration} segundos.</p>
+          <p className="mb-2"> Duración: {formatDuration(question.duration)} </p>
+
           <p className="mb-6">
             Fecha límite:{" "}
             {deadline ? deadline.toLocaleDateString("es-CL") : "No definida"}

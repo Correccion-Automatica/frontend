@@ -67,6 +67,7 @@ export default function QuestionForm({
   const [guidelineId, setGuidelineId] = useState(null);
   const [isPublished, setIsPublished] = useState(isPublishedInitial);
   const [publishMessage, setPublishMessage] = useState("");
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const [originalValues, setOriginalValues] = useState(null);
 
@@ -77,8 +78,12 @@ export default function QuestionForm({
   const openPopup = (t, m) => setPopup({ open: true, title: t, message: m });
   const closePopup = () => setPopup((p) => ({ ...p, open: false }));
 
+  const [minDueDate, setMinDueDate] = useState("");
+
+
   // ✅ En create siempre se puede editar. En view se bloquea si hay pauta o se está generando.
-  const canEditQuestion = isCreate || (!guidelineId && !isGuidelineGenerating);
+  const canEditQuestion = isCreate || isPublished || (!guidelineId && !isGuidelineGenerating);
+
 
   // ✅ ReadOnly: si no estás editando, o si (en view) no se puede editar
   const readOnly = !isEditing || !canEditQuestion;
@@ -205,7 +210,6 @@ export default function QuestionForm({
     if (Number.isNaN(parsed.getTime())) return;
 
     if (parsed.getTime() < Date.now()) {
-      setDueDate("");
     }
   }, [isEditing, isCreate, dueDate, setDueDate]);
 
@@ -275,46 +279,52 @@ export default function QuestionForm({
   /* --------------------------------------------------------
    * Publicar / Despublicar (solo VIEW)
    * -------------------------------------------------------- */
-  const handleTogglePublish = async () => {
-    try {
-      const newStatus = !isPublished;
+const handleTogglePublish = async () => {
+  if (isPublishing) return;
 
-      await api.patch(`/questions/${questionId}`, {
-        isPublished: newStatus,
-      });
+  setIsPublishing(true);
 
-      setIsPublished(newStatus);
+  try {
+    const newStatus = !isPublished;
 
-      setPublishMessage(
-        newStatus
-          ? "Pregunta publicada correctamente."
-          : "Pregunta despublicada correctamente."
-      );
+    await api.patch(`/questions/${questionId}`, {
+      isPublished: newStatus,
+    });
 
-      setTimeout(() => setPublishMessage(""), 4000);
-    } catch (err) {
-      console.error("❌ Error al publicar/despublicar:", err);
-    }
-  };
+    setIsPublished(newStatus);
+
+    setPublishMessage(
+      newStatus
+        ? "Pregunta publicada correctamente."
+        : "Pregunta despublicada correctamente."
+    );
+
+    setTimeout(() => setPublishMessage(""), 4000);
+  } catch (err) {
+    console.error("❌ Error al publicar/despublicar:", err);
+  } finally {
+    setIsPublishing(false);
+  }
+};
+
 
   /* --------------------------------------------------------
    * Entrar en modo edición (solo VIEW)
    * -------------------------------------------------------- */
-  const handleStartEditing = () => {
-    if (!canEditQuestion) return;
+ const handleStartEditing = () => {
+  if (!canEditQuestion) return;
 
-    setOriginalValues({
-      title,
-      days,
-      hours,
-      minutes,
-      dueDate,
-      content,
-      pseudoGuideline,
-    });
-    setIsEditing(true);
-    onEditingChange(true);
-  };
+  setOriginalValues({ title, days, hours, minutes, dueDate, content, pseudoGuideline });
+
+  // ✅ fija el mínimo una sola vez (no en cada render)
+  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+  setMinDueDate(nowLocal);
+
+  setIsEditing(true);
+  onEditingChange(true);
+};
 
   /* --------------------------------------------------------
    * Cancelar edición (solo VIEW)
@@ -499,7 +509,7 @@ export default function QuestionForm({
           label="Título de la pregunta"
           value={title}
           onChange={setTitle}
-          readOnly={readOnly || (!!guidelineId && !isCreate)}
+          readOnly={readOnly || (!!guidelineId && !isCreate && !isPublished)}
           placeholder="Ej: Caso de estudio sobre posicionamiento de marca"
           singleLine={true}
         />
@@ -526,21 +536,17 @@ export default function QuestionForm({
 
               {!readOnly ? (
                 <input
-                  type="datetime-local"
-                  value={dueDate || ""}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  min={new Date(
-                    Date.now() - new Date().getTimezoneOffset() * 60000
-                  )
-                    .toISOString()
-                    .slice(0, 16)}
-                  required={isEditing}
-                  className="w-full rounded-xl border border-[var(--color-border)]
-                    bg-[var(--color-background)] px-3 py-2 text-sm 
-                    text-[var(--color-text)] outline-none 
-                    hover:border-indigo-400 
-                    focus:ring-2 focus:ring-indigo-400/80"
-                />
+                    type="datetime-local"
+                    value={dueDate || ""}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    min={minDueDate || undefined}
+                    required={isEditing}
+                    className="w-full rounded-xl border border-[var(--color-border)]
+                      bg-[var(--color-background)] px-3 py-2 text-sm 
+                      text-[var(--color-text)] outline-none 
+                      hover:border-indigo-400 
+                      focus:ring-2 focus:ring-indigo-400/80"
+                  />
               ) : (
                 <p className="text-sm text-[var(--color-muted)]">
                   {dueDate
@@ -645,10 +651,18 @@ export default function QuestionForm({
 
             <ButtonPrimary
               onClick={handleTogglePublish}
-              className={isPublished ? "bg-red-600 hover:bg-red-700" : undefined}
+              disabled={isPublishing}
+              className={
+                isPublished
+                  ? `bg-red-600 hover:bg-red-700 ${isPublishing ? "opacity-70 cursor-not-allowed" : ""}`
+                  : isPublishing
+                    ? "opacity-70 cursor-not-allowed"
+                    : undefined
+              }
             >
-              {isPublished ? "📤 Despublicar" : "📢 Publicar"}
+              {isPublishing ? "Cargando..." : isPublished ? "📤 Despublicar" : "📢 Publicar"}
             </ButtonPrimary>
+
           </div>
         )}
       </div>
