@@ -52,11 +52,6 @@ export default function TeacherProfile() {
   const creditsFromUser = Number(user?.remaining_credits ?? user?.credits ?? 0);
   const credits = Number(ctxCredits ?? creditsFromUser ?? 0);
 
-  const creditSuggestions = [
-    { name: "Mini Pack", detail: "500 créditos — $2.900 CLP" },
-    { name: "Medium Pack", detail: "1.000 créditos — $4.900 CLP" },
-    { name: "Max Pack", detail: "1.500 créditos — $6.900 CLP" },
-  ];
 
   const navLinks = [
     { to: "/teacher-profile", label: "Cursos", icon: <FaBook /> },
@@ -93,15 +88,6 @@ export default function TeacherProfile() {
           Comprar créditos
         </Link>
 
-        <div className="pt-3 border-t border-gray-100 dark:border-gray-800 space-y-1">
-          <p className="text-xs font-semibold text-gray-500">Paquetes sugeridos</p>
-          {creditSuggestions.map((item) => (
-            <p key={item.name} className="text-xs text-gray-600 dark:text-gray-400 flex justify-between gap-2">
-              <span>{item.name}</span>
-              <span className="font-medium">{item.detail}</span>
-            </p>
-          ))}
-        </div>
       </div>
     );
   };
