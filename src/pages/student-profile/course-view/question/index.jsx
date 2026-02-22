@@ -9,6 +9,22 @@ import PageHeader from "../../../../components/PageHeader";
 import { api } from "../../../../lib/axios";
 import { useAuth } from "../../../../context/AuthProvider";
 
+function formatDuration(seconds) {
+  if (!seconds || seconds <= 0) return "0m";
+
+  const days = Math.floor(seconds / (24 * 3600));
+  const hours = Math.floor((seconds % (24 * 3600)) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  const parts = [];
+
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+
+  return parts.join("");
+}
+
 export default function QuestionDetail() {
   const { courseId, questionId } = useParams();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -86,7 +102,7 @@ export default function QuestionDetail() {
         const myAnswers = answers.filter(
           (a) =>
             Number(a.userId) === Number(user.id) &&
-            Number(a.questionId) === Number(questionId)
+            Number(a.questionId) === Number(questionId),
         );
 
         if (myAnswers.length > 0) {
@@ -117,8 +133,7 @@ export default function QuestionDetail() {
       try {
         setRecorrection(null);
 
-        const hasGrade =
-          lastAnswer?.grade !== null && lastAnswer?.grade !== undefined;
+        const hasGrade = lastAnswer?.grade !== null && lastAnswer?.grade !== undefined;
 
         if (!hasGrade || !lastAnswer?.id) return;
 
@@ -129,9 +144,7 @@ export default function QuestionDetail() {
         const allRecorrections = res.data || [];
 
         // 🔎 Buscar la que corresponde a esta respuesta
-        const found = allRecorrections.find(
-          (r) => Number(r.answerId) === Number(lastAnswer.id)
-        );
+        const found = allRecorrections.find((r) => Number(r.answerId) === Number(lastAnswer.id));
 
         setRecorrection(found || null);
       } catch (err) {
@@ -248,9 +261,7 @@ export default function QuestionDetail() {
       setTimeout(() => setRecorrectionSuccess(false), 4000);
     } catch (err) {
       console.error("❌ Error enviando recorreción:", err);
-      setRecorrectionError(
-        "No se pudo enviar la recorreción. Revisa la consola o intenta nuevamente."
-      );
+      setRecorrectionError("No se pudo enviar la recorreción. Revisa la consola o intenta nuevamente.");
     } finally {
       setRecorrectionSending(false);
     }
@@ -259,18 +270,14 @@ export default function QuestionDetail() {
   /* ---------------------------------------------------------
    * Render
    * --------------------------------------------------------- */
-  if (authLoading || loading)
-    return <p className="p-6 text-center">Cargando pregunta...</p>;
+  if (authLoading || loading) return <p className="p-6 text-center">Cargando pregunta...</p>;
 
   if (!isAuthenticated)
     return (
-      <p className="p-6 text-center text-[var(--color-muted)]">
-        Debes iniciar sesión para ver esta pregunta.
-      </p>
+      <p className="p-6 text-center text-[var(--color-muted)]">Debes iniciar sesión para ver esta pregunta.</p>
     );
 
-  if (!question)
-    return <p className="p-6 text-center">No se encontró la pregunta solicitada.</p>;
+  if (!question) return <p className="p-6 text-center">No se encontró la pregunta solicitada.</p>;
 
   /* ---------------------------------------------------------
    * Pregunta NO publicada
@@ -282,7 +289,6 @@ export default function QuestionDetail() {
         <div className="max-w-3xl mx-auto mt-6 p-6 rounded-2xl shadow bg-[var(--color-surface)] border">
           <h2 className="text-2xl font-semibold mb-4">{question.title}</h2>
           <p className="mb-2">⛔ Esta pregunta aún no ha sido publicada.</p>
-          <BackButton label="Volver al curso" />
         </div>
       </div>
     );
@@ -292,9 +298,7 @@ export default function QuestionDetail() {
    * Pregunta vencida
    * --------------------------------------------------------- */
   const now = Date.now();
-  const deadlineMs = question.endDatetime
-    ? new Date(question.endDatetime).getTime()
-    : null;
+  const deadlineMs = question.endDatetime ? new Date(question.endDatetime).getTime() : null;
 
   if (deadlineMs && now > deadlineMs && !lastAnswer) {
     return (
@@ -302,22 +306,16 @@ export default function QuestionDetail() {
         <PageHeader columns={[question.title]} />
         <div className="max-w-3xl mx-auto mt-6 p-6 rounded-2xl shadow bg-[var(--color-surface)] border">
           <h2 className="text-2xl font-semibold mb-4">{question.title}</h2>
-          <p className="text-lg mb-4">
-            🚫 Esta pregunta no está disponible porque ya pasó la fecha de entrega.
-          </p>
-          <BackButton label="Volver al curso" />
+          <p className="text-lg mb-4">🚫 Esta pregunta no está disponible porque ya pasó la fecha de entrega.</p>
         </div>
       </div>
     );
   }
 
   // helper: “ya está corregida”
-  const isGraded =
-    status === "GRADED" ||
-    (lastAnswer?.grade !== null && lastAnswer?.grade !== undefined);
+  const isGraded = status === "GRADED" || (lastAnswer?.grade !== null && lastAnswer?.grade !== undefined);
 
-  const hasRecorrection =
-    !!recorrection && Number(recorrection?.answerId) === Number(lastAnswer?.id);
+  const hasRecorrection = !!recorrection && Number(recorrection?.answerId) === Number(lastAnswer?.id);
 
   /* ---------------------------------------------------------
    * SUBMITTED (sin nota)
@@ -330,27 +328,18 @@ export default function QuestionDetail() {
           <p className="text-lg font-semibold mb-4">Tu respuesta enviada:</p>
 
           <details className="text-left p-3 rounded-md border bg-[var(--color-background)] text-sm mb-2">
-            <summary className="cursor-pointer font-semibold">
-              Ver respuesta enviada
-            </summary>
-            <div className="mt-2 whitespace-pre-line">
-              {lastAnswer?.content || "(sin respuesta)"}
-            </div>
+            <summary className="cursor-pointer font-semibold">Ver respuesta enviada</summary>
+            <div className="mt-2 whitespace-pre-line">{lastAnswer?.content || "(sin respuesta)"}</div>
           </details>
 
           <p className="text-[var(--color-muted)] text-sm mt-4 italic">
-            Una vez que la pregunta sea corregida podrás ver tu nota y los
-            comentarios del corrector aquí.
+            Una vez que la pregunta sea corregida podrás ver tu nota y los comentarios del corrector aquí.
           </p>
 
           {autoSubmitted ? (
-            <p className="text-orange-500 text-sm mt-4">
-              ⏰ Tu tiempo se agotó y la respuesta fue enviada automáticamente.
-            </p>
+            <p className="text-orange-500 text-sm mt-4">⏰ Tu tiempo se agotó y la respuesta fue enviada automáticamente.</p>
           ) : (
-            <p className="text-green-600 text-sm mt-4">
-              ✅ Tu respuesta fue enviada correctamente.
-            </p>
+            <p className="text-green-600 text-sm mt-4">✅ Tu respuesta fue enviada correctamente.</p>
           )}
         </div>
       </div>
@@ -396,10 +385,7 @@ export default function QuestionDetail() {
    * GRADED — nota + feedback + (si existe) recorrection asociada
    * --------------------------------------------------------- */
   if (isGraded) {
-    const displayedGrade =
-      hasRecorrection && recorrection?.newGrade != null
-        ? recorrection.newGrade
-        : lastAnswer?.grade;
+    const displayedGrade = hasRecorrection && recorrection?.newGrade != null ? recorrection.newGrade : lastAnswer?.grade;
 
     return (
       <div className="mt-6 px-4 text-center">
@@ -407,7 +393,6 @@ export default function QuestionDetail() {
         <div className="max-w-3xl mx-auto mt-6 p-6 rounded-2xl shadow bg-[var(--color-surface)] border">
           <p className="text-2xl font-semibold mb-4">📝 Resultado de la evaluación</p>
 
-          {/* Banner éxito recorreción */}
           {recorrectionSuccess && (
             <div
               className="mb-4 text-center p-3 rounded-xl 
@@ -418,83 +403,53 @@ export default function QuestionDetail() {
             </div>
           )}
 
-          {/* NOTA */}
           <div className="p-4 mb-4 rounded-xl border bg-[var(--color-background)]">
-            <p className="text-xl font-bold">
-              Nota final: {displayedGrade ?? "N/A"}
-            </p>
+            <p className="text-xl font-bold">Nota final: {displayedGrade ?? "N/A"}</p>
 
             {hasRecorrection && recorrection?.newGrade != null && (
-              <p className="text-xs text-[var(--color-muted)] mt-1">
-                (Mostrando la nueva nota luego de la recorreción)
-              </p>
+              <p className="text-xs text-[var(--color-muted)] mt-1">(Mostrando la nueva nota luego de la recorreción)</p>
             )}
           </div>
 
-          {/* Si existe recorrection asociada, mostrar ese bloque arriba */}
           {recorrectionLoading ? (
-            <div className="mb-4 text-sm text-[var(--color-muted)]">
-              Cargando estado de recorreción...
-            </div>
+            <div className="mb-4 text-sm text-[var(--color-muted)]">Cargando estado de recorreción...</div>
           ) : hasRecorrection ? (
             <div className="mb-6 text-left p-4 rounded-xl border bg-[var(--color-background)]">
               <h3 className="text-lg font-semibold mb-3">🔁 Recorreción</h3>
 
               <details className="rounded-lg border bg-white/40 p-3">
-                <summary className="cursor-pointer font-semibold">
-                  Motivo de Recorrección
-                </summary>
-                <div className="mt-2 whitespace-pre-line text-sm">
-                  {recorrection?.content || "(sin contenido)"}
-                </div>
+                <summary className="cursor-pointer font-semibold">Motivo de Recorrección</summary>
+                <div className="mt-2 whitespace-pre-line text-sm">{recorrection?.content || "(sin contenido)"}</div>
               </details>
 
               <details className="mt-3 rounded-lg border bg-white/40 p-3">
-                <summary className="cursor-pointer font-semibold">
-                  Feedback Recorrección
-                </summary>
+                <summary className="cursor-pointer font-semibold">Feedback Recorrección</summary>
                 <div className="mt-2 whitespace-pre-line text-sm">
                   {recorrection?.teachersFeedback || "Esperando respuesta"}
                 </div>
               </details>
 
               <div className="mt-3 text-sm">
-                <span className="font-semibold">Nueva nota:</span>{" "}
-                {recorrection?.newGrade ?? "Esperando respuesta"}
+                <span className="font-semibold">Nueva nota:</span> {recorrection?.newGrade ?? "Esperando respuesta"}
               </div>
             </div>
           ) : null}
 
-          {/* FEEDBACK DEL ASISTENTE (desplegable) */}
           <details className="text-left p-4 rounded-xl border bg-[var(--color-background)]">
-            <summary className="cursor-pointer text-lg font-semibold">
-              Comentarios del corrector
-            </summary>
-            <div className="mt-3 whitespace-pre-line">
-              {lastAnswer?.assistantFeedback || "Sin comentarios disponibles."}
-            </div>
+            <summary className="cursor-pointer text-lg font-semibold">Comentarios del corrector</summary>
+            <div className="mt-3 whitespace-pre-line">{lastAnswer?.assistantFeedback || "Sin comentarios disponibles."}</div>
           </details>
 
-          {/* RESPUESTA DEL ESTUDIANTE (desplegable) */}
           <details className="mt-4 text-left p-4 rounded-xl border bg-[var(--color-background)]">
-            <summary className="cursor-pointer text-lg font-semibold">
-              Tu respuesta enviada
-            </summary>
-            <div className="mt-3 whitespace-pre-line text-sm">
-              {lastAnswer?.content || "(sin respuesta)"}
-            </div>
+            <summary className="cursor-pointer text-lg font-semibold">Tu respuesta enviada</summary>
+            <div className="mt-3 whitespace-pre-line text-sm">{lastAnswer?.content || "(sin respuesta)"}</div>
           </details>
 
-          {/* Recorrección (solo si NO existe una recorrection asociada) */}
           {!hasRecorrection && (
             <div className="mt-6 text-left">
-              <h3 className="text-lg font-semibold mb-2">
-                ¿Quieres pedir una recorreción?
-              </h3>
+              <h3 className="text-lg font-semibold mb-2">¿Quieres pedir una recorreción?</h3>
 
-              {recorrectionError && (
-                <div className="mb-3 text-sm text-red-600">{recorrectionError}</div>
-              )}
+              {recorrectionError && <div className="mb-3 text-sm text-red-600">{recorrectionError}</div>}
 
               <TextAreaInput
                 placeholder="Explica por qué crees que deberían revisarte la corrección..."
@@ -503,21 +458,14 @@ export default function QuestionDetail() {
               />
 
               <div className="flex justify-center mt-4">
-                <ButtonPrimary
-                  onClick={handleRecorrection}
-                  disabled={recorrectionSending}
-                >
+                <ButtonPrimary onClick={handleRecorrection} disabled={recorrectionSending}>
                   {recorrectionSending ? "Enviando..." : "Recorregir pregunta"}
                 </ButtonPrimary>
               </div>
             </div>
           )}
 
-          {hasRecorrection && (
-            <div className="mt-6 text-[var(--color-muted)] text-sm">
-              Ya solicitaste una recorreción para esta respuesta.
-            </div>
-          )}
+          {hasRecorrection && <div className="mt-6 text-[var(--color-muted)] text-sm">Ya solicitaste una recorreción para esta respuesta.</div>}
         </div>
       </div>
     );
@@ -530,22 +478,14 @@ export default function QuestionDetail() {
     <div className="mt-6 px-4 text-center">
       <PageHeader columns={[question.title]} />
       <div className="max-w-3xl mx-auto mt-6 p-6 rounded-2xl shadow bg-[var(--color-surface)] border">
-        <div className="mb-4 flex justify-end text-sm font-semibold">
-          ⏳ Tiempo restante: {formatTime(timeLeft)}
-        </div>
+        <div className="mb-4 flex justify-end text-sm font-semibold">⏳ Tiempo restante: {formatTime(timeLeft)}</div>
 
         <p className="text-lg mb-4 whitespace-pre-line">{question.content}</p>
 
-        <TextAreaInput
-          placeholder="Escribe tu respuesta aquí..."
-          value={studentAnswer}
-          onChange={setStudentAnswer}
-        />
+        <TextAreaInput placeholder="Escribe tu respuesta aquí..." value={studentAnswer} onChange={setStudentAnswer} />
 
         <div className="flex justify-center mt-6">
-          <ButtonPrimary onClick={() => handleSubmit(false)}>
-            Enviar respuesta
-          </ButtonPrimary>
+          <ButtonPrimary onClick={() => handleSubmit(false)}>Enviar respuesta</ButtonPrimary>
         </div>
       </div>
     </div>

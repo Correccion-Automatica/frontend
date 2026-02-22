@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿﻿import React, { useState } from "react";
 import { api } from '../lib/axios.js';
 
 const faqs = [
@@ -72,7 +72,7 @@ export default function Contact() {
 
   return (
     <div 
-      className="min-h-screen w-screen bg-[var(--color-background)] pb-12 md:pb-16 lg:pb-20"
+      className="min-h-screen w-full overflow-x-hidden bg-[var(--color-background)] pb-12 md:pb-16 lg:pb-20"
       style={{ fontFamily: "Inter, Arial, sans-serif" }}
     >
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 sm:pt-12 lg:px-8 lg:pt-16">

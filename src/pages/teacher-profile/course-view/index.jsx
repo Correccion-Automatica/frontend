@@ -74,10 +74,10 @@ export default function TeacherCourseView() {
           if (a?.id == null || a?.questionId == null) continue;
           const qId = Number(a.questionId);
           answerIdToQuestionId.set(Number(a.id), qId);
-          
+
           // Contar respuestas por pregunta
           questionIdToAnswerCount.set(qId, (questionIdToAnswerCount.get(qId) || 0) + 1);
-          
+
           // Contar respuestas corregidas (con grade !== null)
           if (a?.grade !== null && a?.grade !== undefined) {
             questionIdToGradedCount.set(qId, (questionIdToGradedCount.get(qId) || 0) + 1);
@@ -109,7 +109,7 @@ export default function TeacherCourseView() {
         const formatted = courseQuestions.map((q) => {
           const hasPending = questionsWithPendingRecorrections.has(Number(q.id));
           const qId = Number(q.id);
-          
+
           // Calcular respuestas recibidas y corregidas desde los datos reales
           const numAnswers = questionIdToAnswerCount.get(qId) || 0;
           const numGraded = questionIdToGradedCount.get(qId) || 0;
@@ -129,6 +129,8 @@ export default function TeacherCourseView() {
             endDatetimeRaw: q.endDatetime || null,
 
             status: q.isPublished ? "PUBLICADA" : "SIN PUBLICAR",
+
+            // respuestas recibidas / total estudiantes del curso
             answers: `${numAnswers}/${courseNumStudents || 0}`,
 
             correctionStatus: numAnswers === 0 ? (
@@ -153,6 +155,9 @@ export default function TeacherCourseView() {
                 ✅ Corregidas
               </span>
             ),
+
+            // opcional, por si la tabla lo usa
+            hasPendingRecorrections: hasPending,
 
             recorrectionsStatus: hasPending ? (
               <span
@@ -188,9 +193,7 @@ export default function TeacherCourseView() {
     <div className="mt-6 px-4 space-y-6">
       <PageHeader
         columns={[
-          courseName
-            ? `${courseName} (${courseCode}) - ${coursePeriod}`
-            : `Curso ${courseId}`,
+          courseName ? `${courseName} (${courseCode}) - ${coursePeriod}` : `Curso ${courseId}`,
         ]}
       />
 
