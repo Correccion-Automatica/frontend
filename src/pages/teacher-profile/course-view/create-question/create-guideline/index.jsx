@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import ChatMessage from "../../../../../components/ChatMessage";
 import ChatActions from "../../../../../components/ChatActions";
 import PageHeader from "../../../../../components/PageHeader";
 import ButtonPrimary from "../../../../../components/ButtonPrimary";
 import CreditOptionDisplay from "../../../../../components/CreditOptionDisplay";
 import { api } from "../../../../../lib/axios";
+import { useAuth } from "../../../../../context/AuthProvider";
+import gsap from "gsap";
 
 export default function CreateGuideline() {
   const { courseId, questionId } = useParams();
+  const navigate = useNavigate();
+
+  const { user } = useAuth();
+  const sidebarCredits = Number(user?.remaining_credits ?? user?.credits ?? 0);
+  const sidebarName = user?.fullName || user?.name || "Usuario";
 
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState("intro"); // intro | loading | ready | editing | done
@@ -17,12 +24,53 @@ export default function CreateGuideline() {
   const [fase1ResponseId, setFase1ResponseId] = useState(null);
   const [guidelineId, setGuidelineId] = useState(null);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const messagesEndRef = React.useRef(null);
 
-  // créditos del usuario (mock)
-  const userName = "Carolina";
-  const credits = 8000;
-  const minCreditsForEdit = 2000;
+  const loadingRef = React.useRef(null);
+  const loadingTextRef = React.useRef(null);
 
+  const minCreditsForEdit = 110;
+
+  const loadingPhrases = [
+    "Procesando solicitud…",
+    "Generando criterios de evaluación…",
+    "Aplicando observaciones del docente…",
+    "Preparando versión final de criterios…",
+  ];
+  const [loadingText, setLoadingText] = useState(loadingPhrases[0]);
+
+  // removed interval-based text cycling; GSAP will handle loading animations
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, status]);
+
+  useEffect(() => {
+    if (status !== "loading") return;
+    if (!loadingRef.current || !loadingTextRef.current) return;
+
+    const ctx = gsap.context(() => {
+      const dots = gsap.utils.toArray(".dot", loadingRef.current);
+      const tl = gsap.timeline({ repeat: -1 });
+
+      // animate dots
+      tl.to(dots, { y: -6, opacity: 1, stagger: 0.12, duration: 0.35 })
+        .to(dots, { y: 0, opacity: 0.6, stagger: 0.12, duration: 0.35 }, "+=0.12");
+
+      // cycle loading text from loadingPhrases
+      let i = 0;
+      tl.call(() => {
+        loadingTextRef.current.innerText = loadingPhrases[i];
+        i = (i + 1) % loadingPhrases.length;
+      })
+        .to(loadingTextRef.current, { opacity: 1, y: 0, duration: 0.18 })
+        .to(loadingTextRef.current, { opacity: 0, y: -6, duration: 0.18, delay: 1 });
+
+      return () => tl.kill();
+    }, loadingRef);
+
+    return () => ctx.revert && ctx.revert();
+  }, [status]);
   /** ------------------------------------------------------------------
    *  1) CARGAR LA PREGUNTA
    * ------------------------------------------------------------------ */
@@ -39,7 +87,6 @@ export default function CreateGuideline() {
     fetchQuestion();
   }, [courseId, questionId]);
 
-
   /** ------------------------------------------------------------------
    *  2) FASE 1 — Se activa al presionar “Comenzar criterio de evaluación”
    * ------------------------------------------------------------------ */
@@ -50,7 +97,7 @@ export default function CreateGuideline() {
 
     try {
       const res = await api.post("/guidelines/fase-1", {
-        content: question.content, // <-- NO MODIFICAR
+        questionId: question.id,
       });
 
       console.log("FASE 1 RESPONSE:", res.data);
@@ -61,7 +108,7 @@ export default function CreateGuideline() {
         {
           id: Date.now(),
           role: "assistant",
-          content: res.data.criteria, // texto del modelo
+          content: res.data.criteria,
         },
       ]);
 
@@ -81,6 +128,48 @@ export default function CreateGuideline() {
     }
   };
 
+    /** ------------------------------------------------------------------
+   *  2.5) FASE 1-EDIT — Se activa al enviar observaciones en modo "editing"
+   *  - Llama a POST /guidelines/fase-1-edit
+   *  - Continúa desde fase1ResponseId (previous_response_id) y ajusta criterios
+   *  - Devuelve criteria + responseId nuevo (se guarda para continuar el flujo)
+   * ------------------------------------------------------------------ */
+    const handleSendEdit = async (feedback) => {
+      if (!fase1ResponseId) return;
+    
+      setStatus("loading");
+    
+      try {
+        const res = await api.post("/guidelines/fase-1-edit", {
+          fase1ResponseId,
+          feedback,
+        });
+    
+        setFase1ResponseId(res.data.responseId);
+    
+        // Solo append: conservar historial de user -> assistant -> user -> assistant
+        setMessages((prev) => [
+          ...prev,
+          { id: Date.now(), role: "assistant", content: res.data.criteria },
+        ]);
+    
+        setStatus("ready");
+      } catch (err) {
+        console.error("❌ Error editando criterios:", err);
+    
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            role: "assistant",
+            content:
+              "❌ No se pudo ajustar los criterios en este momento. Intenta nuevamente.",
+          },
+        ]);
+    
+        setStatus("ready");
+      }
+    };
 
   /** ------------------------------------------------------------------
    *  3) FINISH FASES — Se activa al confirmar criterios
@@ -88,6 +177,16 @@ export default function CreateGuideline() {
   const handleConfirm = async () => {
     if (!fase1ResponseId || !question) return;
 
+    const key = `guideline_generating_${String(questionId)}`;
+    localStorage.setItem(key, "1");
+
+    try {
+      const bc = new BroadcastChannel("guideline-status");
+      bc.postMessage({ type: "guideline_generating", questionId });
+      bc.close();
+    } catch (e) {}
+
+    navigate(-1);
     setStatus("loading");
 
     try {
@@ -99,8 +198,20 @@ export default function CreateGuideline() {
 
       console.log("FINISH FASES RESPONSE:", res.data);
 
-      const newId = res.data.id; // <-- ID de la pauta
+      const newId = res.data.id;
       setGuidelineId(newId);
+
+      localStorage.removeItem(key);
+
+      try {
+        const bc = new BroadcastChannel("guideline-status");
+        bc.postMessage({
+          type: "guideline_created",
+          questionId,
+          guidelineId: newId,
+        });
+        bc.close();
+      } catch (e) {}
 
       setMessages((prev) => [
         ...prev,
@@ -110,11 +221,10 @@ export default function CreateGuideline() {
           content: (
             <div className="space-y-2">
               <p>
-                🎉 Tu pauta fue generada correctamente y cargada al curso.
-                Ahora puedes descargarla en PDF.
+                🎉 Tu pauta fue generada correctamente y cargada al curso. Ahora
+                puedes descargarla en PDF.
               </p>
 
-              {/* Descargar PDF solo cuando se hace click */}
               <ButtonPrimary onClick={() => handleDownloadPDF(newId)}>
                 📄 Descargar Pauta en PDF
               </ButtonPrimary>
@@ -126,6 +236,14 @@ export default function CreateGuideline() {
       setStatus("done");
     } catch (err) {
       console.error("❌ Error en finish-fases:", err);
+
+      localStorage.removeItem(key);
+
+      try {
+        const bc = new BroadcastChannel("guideline-status");
+        bc.postMessage({ type: "guideline_error", questionId });
+        bc.close();
+      } catch (e) {}
 
       setMessages((prev) => [
         ...prev,
@@ -140,9 +258,8 @@ export default function CreateGuideline() {
     }
   };
 
-
   /** ------------------------------------------------------------------
-   *  4) DESCARGAR PDF — GET /guideline/generatePDF/:guidelineId
+   *  4) DESCARGAR PDF — GET /guidelines/generatePDF/:guidelineId
    * ------------------------------------------------------------------ */
   const handleDownloadPDF = async (id) => {
     if (!id) {
@@ -176,26 +293,16 @@ export default function CreateGuideline() {
     }
   };
 
-
-  /** ------------------------------------------------------------------
-   *  MODO EDICIÓN (dummy)
-   * ------------------------------------------------------------------ */
-  const handleEdit = () => setStatus("editing");
-
-
   /** ------------------------- RENDER ------------------------------- */
   return (
     <div className="mb-6">
       <PageHeader columns={["Creación de pautas"]} showBack={false} />
 
       <div className="max-w-6xl mx-auto mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-        
-        {/* Panel lateral créditos */}
         <div className="md:col-span-1">
-          <CreditOptionDisplay userName={userName} credits={credits} />
+          <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
         </div>
 
-        {/* CONTENIDO PRINCIPAL */}
         <div className="md:col-span-3">
           <div
             className="p-6 rounded-2xl shadow
@@ -203,13 +310,14 @@ export default function CreateGuideline() {
                        border border-[var(--color-border)] 
                        min-h-[300px] flex flex-col space-y-4"
           >
-            {/* Pregunta */}
             {question && (
               <ChatMessage
                 role="assistant"
                 content={
                   <div>
-                    <p className="font-semibold text-lg mb-2">🧩 {question.title}</p>
+                    <p className="font-semibold text-lg mb-2">
+                      🧩 {question.title}
+                    </p>
                     <p className="whitespace-pre-line text-[var(--color-text)]">
                       {typeof question.content === "object"
                         ? question.content.text
@@ -220,27 +328,46 @@ export default function CreateGuideline() {
               />
             )}
 
-            {/* Mensajes */}
             <div className="flex flex-col gap-3 flex-1">
-              {status === "loading" && (
-                <ChatMessage role="assistant" muted content="🤔 Generando criterios…" />
-              )}
-
               {messages.map((msg) => (
                 <ChatMessage key={msg.id} role={msg.role} content={msg.content} />
               ))}
 
+              <div ref={messagesEndRef} />
+
+              {status === "loading" && (
+                <ChatMessage
+                  role="assistant"
+                  muted
+                  content={
+                    <div ref={loadingRef} className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        <span className="dot inline-block h-2 w-2 rounded-full bg-[var(--color-primary)] opacity-60" />
+                        <span className="dot inline-block h-2 w-2 rounded-full bg-[var(--color-primary)] opacity-60" />
+                        <span className="dot inline-block h-2 w-2 rounded-full bg-[var(--color-primary)] opacity-60" />
+                      </div>
+
+                      <div
+                        ref={loadingTextRef}
+                        className="ml-3 text-sm italic text-[var(--color-muted)] opacity-0 -translate-y-1"
+                      >
+                        {loadingText}
+                      </div>
+                    </div>
+                  }
+                />
+              )}
+
               {status === "ready" && (
                 <ChatActions
                   onConfirm={handleConfirm}
-                  onEdit={handleEdit}
-                  cost={250}
-                  canEdit={credits >= minCreditsForEdit}
+                  onEdit={() => setStatus("editing")}
+                  cost={minCreditsForEdit}
+                  canEdit={500 >= minCreditsForEdit}
                 />
               )}
             </div>
 
-            {/* Botón inicial */}
             {status === "intro" && (
               <div className="border-t border-[var(--color-border)] pt-4 flex justify-center">
                 <ButtonPrimary
@@ -252,7 +379,6 @@ export default function CreateGuideline() {
               </div>
             )}
 
-            {/* Modo edición */}
             {status === "editing" && (
               <div className="border-t border-[var(--color-border)] pt-4">
                 <form
@@ -267,20 +393,8 @@ export default function CreateGuideline() {
                       { id: Date.now(), role: "user", content: inputValue },
                     ]);
                     form.reset();
-                    setStatus("loading");
 
-                    setTimeout(() => {
-                      setMessages((prev) => [
-                        ...prev,
-                        {
-                          id: Date.now() + 1,
-                          role: "assistant",
-                          content:
-                            "Criterios ajustados según tu observación. ¿Estás conforme?",
-                        },
-                      ]);
-                      setStatus("ready");
-                    }, 1500);
+                    handleSendEdit(inputValue);
                   }}
                 >
                   <div className="flex gap-3 items-end">
@@ -292,7 +406,17 @@ export default function CreateGuideline() {
                                  focus:ring-[var(--color-primary)]"
                       rows={2}
                     />
-                    <ButtonPrimary type="submit" className="px-5 py-3 text-sm font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setStatus("ready")}
+                      className="px-5 py-3 text-sm font-semibold rounded-md border border-[var(--color-border)] bg-[var(--color-background)] cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <ButtonPrimary
+                      type="submit"
+                      className="px-5 py-3 text-sm font-semibold"
+                    >
                       Enviar
                     </ButtonPrimary>
                   </div>
@@ -301,18 +425,14 @@ export default function CreateGuideline() {
             )}
           </div>
 
-          {/* FINAL */}
           {status === "done" && (
             <div className="flex flex-col items-center mt-6 gap-4">
-
               <ButtonPrimary
                 onClick={() => window.history.back()}
                 disabled={downloadingPDF}
               >
                 {downloadingPDF ? "Descargando…" : "Ir a mi pregunta"}
               </ButtonPrimary>
-
-              {/* Descargar PDF solo si existe guidelineId */}
             </div>
           )}
         </div>

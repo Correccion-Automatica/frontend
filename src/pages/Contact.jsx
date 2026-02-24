@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿﻿import React, { useState } from "react";
 import { api } from '../lib/axios.js';
 
 const faqs = [
@@ -72,7 +72,7 @@ export default function Contact() {
 
   return (
     <div 
-      className="min-h-screen w-screen bg-[var(--color-background)] pb-12 md:pb-16 lg:pb-20"
+      className="min-h-screen w-full overflow-x-hidden bg-[var(--color-background)] pb-12 md:pb-16 lg:pb-20"
       style={{ fontFamily: "Inter, Arial, sans-serif" }}
     >
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 sm:pt-12 lg:px-8 lg:pt-16">
@@ -206,12 +206,9 @@ export default function Contact() {
               <h3 className="mb-4 text-xl font-bold sm:text-2xl lg:text-3xl">
                 ¿Listo para revolucionar tu forma de evaluar?
               </h3>
-              <p className="mb-6 text-sm sm:text-base lg:text-lg">
+              <p className="text-sm sm:text-base lg:text-lg">
                 Agenda una demo personalizada y descubre cómo nuestra plataforma puede transformar tu proceso.
               </p>
-              <button className="rounded-3xl bg-[var(--color-onprimary)] px-6 py-3 text-sm font-medium text-[var(--color-primary)] transition-all hover:scale-105 sm:px-8 sm:py-4 sm:text-base lg:text-lg">
-                Solicitar demo gratuita
-              </button>
             </div>
             <div className="rounded-3xl bg-[var(--color-background)] p-6 shadow-lg sm:p-8 lg:p-10">
               <h3 className="mb-5 text-xl font-bold text-[var(--color-text)] sm:mb-6 sm:text-2xl lg:text-3xl">

@@ -4,7 +4,7 @@ import { api } from "../../lib/axios";
 import { useAuth } from "../../context/AuthProvider";
 import ButtonPrimary from "../../components/ButtonPrimary";
 import { Link, useLocation } from "react-router-dom";
-import { FaHome, FaBook, FaUsers, FaCalendarAlt, FaInbox } from "react-icons/fa";
+import { FaBook, FaUsers, FaInbox } from "react-icons/fa";
 import { FaFolderOpen, FaCog, FaQuestionCircle, FaUserAlt, FaSignOutAlt } from "react-icons/fa";
 
 export default function TeacherProfile() {
@@ -40,12 +40,15 @@ export default function TeacherProfile() {
   const teacherName = user?.fullName || user?.name || "Profesor/a";
   const teacherEmail = user?.email || "";
   const credits = Number(user?.remaining_credits ?? user?.credits ?? 0);
+  const creditSuggestions = [
+    { name: "Mini Pack", detail: "500 créditos — $2.900 CLP" },
+    { name: "Medium Pack", detail: "1.000 créditos — $4.900 CLP" },
+    { name: "Max Pack", detail: "1.500 créditos — $6.900 CLP" },
+  ];
 
   const navLinks = [
-    { to: "/dashboard", label: "Tablero", icon: <FaHome /> },
     { to: "/teacher-profile", label: "Cursos", icon: <FaBook /> },
     { to: "/groups", label: "Grupos", icon: <FaUsers /> },
-    { to: "/calendar", label: "Calendario", icon: <FaCalendarAlt /> },
     { to: "/inbox", label: "Bandeja de entrada", icon: <FaInbox /> },
     { to: "/support", label: "Ayuda y soporte", icon: <FaQuestionCircle /> },
   ];
@@ -58,7 +61,7 @@ export default function TeacherProfile() {
 
     return (
       <div className={`${baseClasses} ${className}`.trim()}>
-        <div className="text-sm text-gray-500">Créditos</div>
+        <div className="text-sm text-gray-500">Créditos disponibles</div>
         <div className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
           {credits.toLocaleString()} créditos
         </div>
@@ -67,7 +70,7 @@ export default function TeacherProfile() {
           to="/payments/history"
           className="inline-flex items-center justify-center px-3 py-1 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
         >
-          Ver detalle
+          Ver historial
         </Link>
         <Link
           to="/payments/purchase"
@@ -75,6 +78,15 @@ export default function TeacherProfile() {
         >
           Comprar créditos
         </Link>
+        <div className="pt-3 border-t border-gray-100 dark:border-gray-800 space-y-1">
+          <p className="text-xs font-semibold text-gray-500">Paquetes sugeridos</p>
+          {creditSuggestions.map((item) => (
+            <p key={item.name} className="text-xs text-gray-600 dark:text-gray-400 flex justify-between gap-2">
+              <span>{item.name}</span>
+              <span className="font-medium">{item.detail}</span>
+            </p>
+          ))}
+        </div>
       </div>
     );
   };
@@ -195,22 +207,16 @@ export default function TeacherProfile() {
       </main>
 
       <nav className="fixed bottom-0 left-0 w-full bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 flex justify-between items-center px-2 py-1 shadow-lg md:hidden z-40">
-        <Link to="/dashboard" className="flex flex-col items-center justify-center text-xs text-blue-700 dark:text-blue-400 font-semibold w-1/6">
-          <FaHome className="text-lg mb-1" /> Tablero
-        </Link>
-        <Link to="/teacher-profile" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
+        <Link to="/teacher-profile" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/4">
           <FaBook className="text-lg mb-1" /> Cursos
         </Link>
-        <Link to="/groups" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
+        <Link to="/groups" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/4">
           <FaUsers className="text-lg mb-1" /> Grupos
         </Link>
-        <Link to="/calendar" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
-          <FaCalendarAlt className="text-lg mb-1" /> Calendario
-        </Link>
-        <Link to="/inbox" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
+        <Link to="/inbox" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/4">
           <FaInbox className="text-lg mb-1" /> Bandeja
         </Link>
-        <Link to="/support" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6">
+        <Link to="/support" className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/4">
           <FaQuestionCircle className="text-lg mb-1" /> Ayuda
         </Link>
       </nav>

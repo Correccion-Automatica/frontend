@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { FaClock, FaHourglassHalf, FaPlay } from "react-icons/fa";
 import TextAreaInput from "./TextAreaInput";
+import ConfirmPopup from "./ConfirmPopup";
 import PrimaryToggle from "./PrimaryToggle";
 import ButtonPrimary from "./ButtonPrimary";
 import { api } from "../lib/axios";
@@ -43,6 +44,9 @@ export default function QuestionForm({
   setDueDate,
   content,
   setContent,
+  pseudoGuideline = "",
+  setPseudoGuideline = () => {},
+  onEditingChange = () => {},
 
   mode = "view", // "view" | "create"
 
@@ -64,10 +68,21 @@ export default function QuestionForm({
   const [isPublished, setIsPublished] = useState(isPublishedInitial);
   const [publishMessage, setPublishMessage] = useState("");
 
-  // Snapshot de valores originales para poder restaurar al cancelar (solo view)
   const [originalValues, setOriginalValues] = useState(null);
 
-  const readOnly = !isEditing;
+  const [isGuidelineGenerating, setIsGuidelineGenerating] = useState(false);
+  const [numStudents, setNumStudents] = useState(null);
+
+  const [popup, setPopup] = useState({ open: false, title: "", message: "" });
+  const openPopup = (t, m) => setPopup({ open: true, title: t, message: m });
+  const closePopup = () => setPopup((p) => ({ ...p, open: false }));
+
+  // ✅ En create siempre se puede editar. En view se bloquea si hay pauta o se está generando.
+  const canEditQuestion = isCreate || (!guidelineId && !isGuidelineGenerating);
+
+  // ✅ ReadOnly: si no estás editando, o si (en view) no se puede editar
+  const readOnly = !isEditing || !canEditQuestion;
+
   const endDateLabel = getEndDateLabel(dueDate, days, hours, minutes);
 
   useEffect(() => {
@@ -75,12 +90,115 @@ export default function QuestionForm({
   }, [isPublishedInitial]);
 
   useEffect(() => {
-    // Solo aplica en VIEW
+    if (isCreate) return;
+    const key = `guideline_generating_${String(questionId)}`;
+    const isGen = localStorage.getItem(key) === "1";
+    setIsGuidelineGenerating(isGen);
+
+    if (isGen) {
+      const onceKey = `guideline_popup_generating_seen_${String(questionId)}`;
+      if (localStorage.getItem(onceKey) !== "1") {
+        localStorage.setItem(onceKey, "1");
+        openPopup(
+          "⏳ Generando pauta",
+          "Tu pauta se está generando. Te avisaremos aquí cuando esté lista."
+        );
+      }
+    }
+  }, [isCreate, questionId]);
+
+  // Obtener numStudents una sola vez cuando se monta (solo en modo view)
+  useEffect(() => {
+    if (isCreate || !courseId || numStudents !== null) return;
+
+    const fetchNumStudents = async () => {
+      try {
+        const response = await api.get("/courses/user/all");
+        const courseFound = (response.data || []).find(
+          (item) => Number(item.course?.id) === Number(courseId)
+        );
+        if (courseFound?.course?.numStudents !== undefined) {
+          setNumStudents(courseFound.course.numStudents);
+        }
+      } catch (err) {
+        console.error("Error obteniendo numStudents:", err);
+      }
+    };
+
+    fetchNumStudents();
+  }, [isCreate, courseId, numStudents]);
+
+  useEffect(() => {
     if (isCreate) return;
 
-    // Solo al entrar en edición
+    let bc;
+    try {
+      bc = new BroadcastChannel("guideline-status");
+      bc.onmessage = (e) => {
+        const data = e?.data;
+        if (!data) return;
+        if (String(data.questionId) !== String(questionId)) return;
+
+        if (data.type === "guideline_created" && data.guidelineId) {
+          setGuidelineId(data.guidelineId);
+          const key = `guideline_generating_${String(questionId)}`;
+          localStorage.removeItem(key);
+          setIsGuidelineGenerating(false);
+
+          const onceKey = `guideline_popup_ready_seen_${String(questionId)}`;
+          if (localStorage.getItem(onceKey) !== "1") {
+            localStorage.setItem(onceKey, "1");
+            openPopup(
+              "✅ Pauta lista",
+              "La pauta ya está disponible. Ya puedes descargarla."
+            );
+          }
+        }
+
+        if (data.type === "guideline_generating") {
+          const key = `guideline_generating_${String(questionId)}`;
+          localStorage.setItem(key, "1");
+          setIsGuidelineGenerating(true);
+        }
+      };
+    } catch (e) {
+      console.error("Error configurando BroadcastChannel:", e);
+    }
+
+    return () => {
+      try {
+        bc && bc.close();
+      } catch (e) {
+        console.error("Error cerrando BroadcastChannel:", e);
+      }
+    };
+  }, [isCreate, questionId]);
+
+  useEffect(() => {
+  if (!showSuccessBanner) return;
+
+  const t = setTimeout(() => {
+    setShowSuccessBanner(false);
+  }, 6000);
+
+  return () => clearTimeout(t);
+}, [showSuccessBanner]);
+
+  // ✅ Si estás en view editando y de repente aparece pauta / generating, te saca de edición
+  useEffect(() => {
+    if (isCreate) return;
     if (!isEditing) return;
 
+    if (!canEditQuestion) {
+      setIsEditing(false);
+      onEditingChange(false);
+    }
+  }, [canEditQuestion, isCreate, isEditing, onEditingChange]);
+
+  useEffect(() => {
+    if (isCreate) return;
+
+    if (!isEditing) return;
     if (!dueDate) return;
 
     const parsed = new Date(dueDate);
@@ -90,7 +208,6 @@ export default function QuestionForm({
       setDueDate("");
     }
   }, [isEditing, isCreate, dueDate, setDueDate]);
-
 
   /* --------------------------------------------------------
    * Buscar guideline de la pregunta (solo VIEW)
@@ -107,7 +224,21 @@ export default function QuestionForm({
           (g) => String(g.questionId) === String(questionId)
         );
 
-        if (found) setGuidelineId(found.id);
+        if (found) {
+          setGuidelineId(found.id);
+          const key = `guideline_generating_${String(questionId)}`;
+          localStorage.removeItem(key);
+          setIsGuidelineGenerating(false);
+
+          const onceKey = `guideline_popup_ready_seen_${String(questionId)}`;
+          if (localStorage.getItem(onceKey) !== "1") {
+            localStorage.setItem(onceKey, "1");
+            openPopup(
+              "✅ Pauta lista",
+              "La pauta ya está disponible. Ya puedes descargarla desde este botón."
+            );
+          }
+        }
       } catch (err) {
         console.error("❌ Error obteniendo guidelines:", err);
       }
@@ -115,7 +246,6 @@ export default function QuestionForm({
 
     fetchGuidelines();
   }, [questionId, isCreate]);
-  
 
   /* --------------------------------------------------------
    * Descargar PDF de pauta (solo VIEW)
@@ -171,6 +301,8 @@ export default function QuestionForm({
    * Entrar en modo edición (solo VIEW)
    * -------------------------------------------------------- */
   const handleStartEditing = () => {
+    if (!canEditQuestion) return;
+
     setOriginalValues({
       title,
       days,
@@ -178,8 +310,10 @@ export default function QuestionForm({
       minutes,
       dueDate,
       content,
+      pseudoGuideline,
     });
     setIsEditing(true);
+    onEditingChange(true);
   };
 
   /* --------------------------------------------------------
@@ -193,14 +327,18 @@ export default function QuestionForm({
       setMinutes(originalValues.minutes);
       setDueDate(originalValues.dueDate);
       setContent(originalValues.content);
+      setPseudoGuideline(originalValues.pseudoGuideline ?? "");
     }
     setIsEditing(false);
+    onEditingChange(false);
   };
 
   /* --------------------------------------------------------
    * Guardar pregunta (PATCH) (solo VIEW)
    * -------------------------------------------------------- */
   const handleSaveEdit = async () => {
+    if (!canEditQuestion) return;
+
     try {
       if (!dueDate) {
         alert("Debes definir una fecha y hora de inicio válidas.");
@@ -238,11 +376,15 @@ export default function QuestionForm({
         body.title = title;
         body.content = content;
       }
+      body.pseudoGuideline = pseudoGuideline?.trim()
+        ? pseudoGuideline.trim()
+        : null;
 
       await api.patch(`/questions/${questionId}`, body);
 
       setShowSuccessBanner(true);
       setIsEditing(false);
+      onEditingChange(false);
     } catch (err) {
       console.error("❌ Error al actualizar pregunta:", err);
     }
@@ -250,7 +392,6 @@ export default function QuestionForm({
 
   return (
     <div className="mt-6 px-4 space-y-8">
-      {/* BANNERS (solo VIEW) */}
       {!isCreate && showSuccessBanner && (
         <div className="max-w-5xl mx-auto mt-2 text-center p-3 rounded-xl bg-green-100 text-green-700 border border-green-300 font-medium">
           🎉 Pregunta guardada correctamente
@@ -263,9 +404,7 @@ export default function QuestionForm({
         </div>
       )}
 
-      {/* CARD PRINCIPAL */}
       <div className="max-w-5xl mx-auto p-6 md:p-8 pt-8 md:pt-12 rounded-3xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-md space-y-8 relative">
-        {/* BOTONES SUPERIORES */}
         <div
           className="
             flex justify-end gap-2 sm:gap-3 mb-4
@@ -302,20 +441,23 @@ export default function QuestionForm({
             <>
               {mode === "view" && !isEditing && (
                 <>
-                  <ButtonPrimary
-                    onClick={handleStartEditing}
-                    className="
-                      bg-gradient-to-r from-indigo-500 to-blue-500
-                      text-white
-                      hover:from-indigo-600 hover:to-blue-600
-                      transition-colors
-                    "
-                  >
-                    ✏️ Editar
-                  </ButtonPrimary>
+                  {canEditQuestion && (
+                    <ButtonPrimary
+                      onClick={handleStartEditing}
+                      className="
+                        bg-gradient-to-r from-indigo-500 to-blue-500
+                        text-white
+                        hover:from-indigo-600 hover:to-blue-600
+                        transition-colors
+                      "
+                    >
+                      ✏️ Editar
+                    </ButtonPrimary>
+                  )}
 
                   <Link
                     to={`/teacher-profile/course-view/${courseId}/question/${questionId}/answers`}
+                    state={{ numStudents }}
                   >
                     <ButtonPrimary className="bg-slate-600 hover:bg-slate-700">
                       🔍 Ver respuestas
@@ -353,16 +495,15 @@ export default function QuestionForm({
           )}
         </div>
 
-        {/* TÍTULO */}
         <TextAreaInput
           label="Título de la pregunta"
           value={title}
           onChange={setTitle}
           readOnly={readOnly || (!!guidelineId && !isCreate)}
           placeholder="Ej: Caso de estudio sobre posicionamiento de marca"
+          singleLine={true}
         />
 
-        {/* PLAZO DE LA ACTIVIDAD */}
         <section className="space-y-5">
           <header className="space-y-1 text-center md:text-left">
             <h2 className="text-base md:text-lg font-semibold text-[var(--color-text)]">
@@ -375,7 +516,6 @@ export default function QuestionForm({
           </header>
 
           <div className="grid gap-5 md:grid-cols-2">
-            {/* Inicio */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-text)]">
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-sm">
@@ -389,8 +529,12 @@ export default function QuestionForm({
                   type="datetime-local"
                   value={dueDate || ""}
                   onChange={(e) => setDueDate(e.target.value)}
-                  min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
-                  required={isEditing} 
+                  min={new Date(
+                    Date.now() - new Date().getTimezoneOffset() * 60000
+                  )
+                    .toISOString()
+                    .slice(0, 16)}
+                  required={isEditing}
                   className="w-full rounded-xl border border-[var(--color-border)]
                     bg-[var(--color-background)] px-3 py-2 text-sm 
                     text-[var(--color-text)] outline-none 
@@ -409,7 +553,6 @@ export default function QuestionForm({
               )}
             </div>
 
-            {/* Duración */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-text)]">
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 text-purple-700 text-sm">
@@ -444,7 +587,6 @@ export default function QuestionForm({
             </div>
           </div>
 
-          {/* Fecha de cierre */}
           <div className="mt-2 rounded-2xl border border-blue-200 bg-blue-50/90 px-4 py-3 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-white shadow-md">
@@ -469,23 +611,29 @@ export default function QuestionForm({
           </div>
         </section>
 
-        {/* CONTENIDO */}
         <TextAreaInput
           label="Contenido de la pregunta"
           value={content}
           onChange={setContent}
           readOnly={readOnly || (!!guidelineId && !isCreate)}
+          height="min-h-[260px]"
         />
 
-        {/* PAUTA + PUBLICAR (solo VIEW) */}
         {!isCreate && (
-          <div className="flex justify-center gap-4 pt-4 ">
+          <div className="flex justify-center gap-4 pt-4">
             {guidelineId ? (
               <ButtonPrimary
                 onClick={handleDownloadPDF}
                 className="bg-slate-600 hover:bg-slate-700"
               >
                 📄 Descargar pauta
+              </ButtonPrimary>
+            ) : isGuidelineGenerating ? (
+              <ButtonPrimary
+                disabled
+                className="bg-slate-300 text-slate-700 cursor-not-allowed"
+              >
+                ⏳ Generando pauta…
               </ButtonPrimary>
             ) : (
               <Link
@@ -497,13 +645,24 @@ export default function QuestionForm({
 
             <ButtonPrimary
               onClick={handleTogglePublish}
-              className={`${isPublished ? "bg-red-600 hover:bg-red-700" : ""}`}
+              className={isPublished ? "bg-red-600 hover:bg-red-700" : undefined}
             >
               {isPublished ? "📤 Despublicar" : "📢 Publicar"}
             </ButtonPrimary>
           </div>
         )}
       </div>
+
+      <ConfirmPopup
+        isOpen={popup.open}
+        title={popup.title}
+        message={popup.message}
+        confirmText="Entendido"
+        cancelText="Cerrar"
+        onConfirm={closePopup}
+        onCancel={closePopup}
+      />
     </div>
   );
 }
+

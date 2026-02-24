@@ -296,3 +296,11 @@
 .animate-pulse-slow {
   animation: pulse-slow 8s ease-in-out infinite;
 }
+
+/* Fondo dedicado a la vista de precios para evitar cortes antes del footer */
+body.pricing-page-bg {
+  background: radial-gradient(ellipse at top left, rgba(80, 56, 141, 0.25), transparent 45%),
+    radial-gradient(ellipse at bottom right, rgba(228, 45, 174, 0.18), transparent 40%),
+    linear-gradient(135deg, #05030a 0%, #0a0820 50%, #05030a 100%);
+  color: #e2e8f0;
+}

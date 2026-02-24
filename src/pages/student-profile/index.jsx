@@ -2,10 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api } from "../../lib/axios";
 import { useAuth } from "../../context/AuthProvider";
 import { Link, useLocation } from "react-router-dom";
-import { 
-  FaHome, FaBook, FaUsers, FaCalendarAlt, FaInbox, 
-  FaQuestionCircle
-} from "react-icons/fa";
+import { FaBook, FaUsers, FaInbox, FaQuestionCircle } from "react-icons/fa";
 
 export default function StudentProfile() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -46,10 +43,8 @@ export default function StudentProfile() {
 
   // Sidebar links (mismos que teacher, pero no muestran create ni settings)
   const navLinks = [
-    { to: "/dashboard", label: "Tablero", icon: <FaHome /> },
     { to: "/student-profile", label: "Cursos", icon: <FaBook /> },
     { to: "/groups", label: "Grupos", icon: <FaUsers /> },
-    { to: "/calendar", label: "Calendario", icon: <FaCalendarAlt /> },
     { to: "/inbox", label: "Bandeja de entrada", icon: <FaInbox /> },
     { to: "/support", label: "Ayuda y soporte", icon: <FaQuestionCircle /> },
   ];
@@ -176,7 +171,7 @@ export default function StudentProfile() {
           <Link
             key={i}
             to={link.to}
-            className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/6"
+            className="flex flex-col items-center justify-center text-xs text-gray-700 dark:text-gray-300 w-1/4"
           >
             <span className="text-lg mb-1">{link.icon}</span>
             {link.label}

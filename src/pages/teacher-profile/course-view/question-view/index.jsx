@@ -5,9 +5,16 @@ import QuestionForm from "../../../../components/QuestionForm";
 import CreditOptionDisplay from "../../../../components/CreditOptionDisplay";
 import PageHeader from "../../../../components/PageHeader";
 import { api } from "../../../../lib/axios";
+import { useAuth } from "../../../../context/AuthProvider";
+import PseudoGuidelineInfo from "../../../../components/PseudoGuidelineInfo";
+
 
 export default function QuestionView() {
   const { courseId, questionId } = useParams();
+
+  const { user } = useAuth();
+  const sidebarCredits = Number(user?.remaining_credits ?? user?.credits ?? 0);
+  const sidebarName = user?.fullName || user?.name || "Usuario";
 
   // Estados de la pregunta
   const [title, setTitle] = useState("");
@@ -16,6 +23,10 @@ export default function QuestionView() {
   const [minutes, setMinutes] = useState(0);
   const [dueDate, setDueDate] = useState("");
   const [content, setContent] = useState("");
+
+  const [pseudoGuideline, setPseudoGuideline] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+
 
   // ⭐ Nuevo estado requerido:
   const [isPublished, setIsPublished] = useState(false);
@@ -51,6 +62,7 @@ export default function QuestionView() {
             ? found.content.text || JSON.stringify(found.content)
             : found.content || ""
         );
+        setPseudoGuideline(found.pseudoGuideline || "");
 
         // ⭐ Cargar estado publicado
         setIsPublished(Boolean(found.isPublished));
@@ -110,14 +122,19 @@ export default function QuestionView() {
       {/* Encabezado */}
       <PageHeader columns={[title || `Pregunta ${questionId}`]} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Panel lateral */}
-        <div className="lg:col-span-1">
-          <CreditOptionDisplay userName="Carolina" credits={2500} />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-4 space-y-4 lg:sticky lg:top-24 self-start">
+          <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
+
+          <PseudoGuidelineInfo
+            value={pseudoGuideline}
+            onChange={setPseudoGuideline}
+            disabled={!isEditing}
+          />
         </div>
 
         {/* Formulario principal */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-8">
           <QuestionForm
             mode="view"
             title={title}
@@ -133,9 +150,10 @@ export default function QuestionView() {
             content={content}
             setContent={setContent}
             onSave={handleSave}
-
-            // ⭐ Lo importante:
             isPublishedInitial={isPublished}
+            pseudoGuideline={pseudoGuideline}
+            setPseudoGuideline={setPseudoGuideline}
+            onEditingChange={setIsEditing}
           />
         </div>
       </div>
