@@ -8,7 +8,7 @@ const plans = [
     period: "/ mes. Uso único.",
     badge: "Ideal para emprender",
     description: "Empezar tu viaje con Automatic Correction. ",
-    features: ["400 créditos", "1 pauta", "40 correcciones", "Soporte por correo"],
+    features: ["400 créditos", "1 pauta", "40 correcciones", "Soporte por correo","Acceso a la comunidad"],
     buttonText: "Comenzar gratis",
     buttonStyle: "secondary",
     buttonAction: "register",
@@ -19,7 +19,7 @@ const plans = [
     period: "/ mes",
     badge: "Más popular",
     description: "Innovar por medio de la automatización.",
-    features: ["1 200 créditos", "3 pautas", "120 correcciones", "Soporte por correo"],
+    features: ["1 200 créditos", "3 pautas", "120 correcciones", "Soporte por correo", "Acceso ilimitado a la plataforma"],
     buttonText: "Suscribirme",
     buttonStyle: "featured",
     buttonAction: "register",
@@ -30,7 +30,7 @@ const plans = [
     period: " x Docente o Curso",
     badge: "Ideal para organizaciones",
     description: "Organizaciones, colegios o universidades.",
-    features: ["1 330 créditos por Docente o Curso", "4 pautas", "133 correcciones", "Soporte por correo"],
+    features: ["1 330 créditos por Docente o Curso", "4 pautas", "133 correcciones", "Soporte por correo", "Soporte por institución","Acceso ilimitado a la plataforma"],
     buttonText: "Suscribirme",
     buttonStyle: "featured",
     buttonAction: "register",
@@ -72,6 +72,15 @@ export default function Pricing() {
             </span>
           </h1>
           <p className="text-base md:text-lg text-slate-200 max-w-2xl mx-auto">Una plataforma que se adapta a ti</p>
+          <div className="flex justify-center">
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/10 text-white font-semibold shadow-md shadow-black/20 border border-white/15 hover:border-white/40 hover:bg-white/15 transition"
+              onClick={() => navigate("/howitworks")}
+            >
+              ¿Cómo funciona?
+            </button>
+          </div>
         </header>
 
         <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
