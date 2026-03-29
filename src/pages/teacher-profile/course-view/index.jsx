@@ -206,6 +206,14 @@ export default function TeacherCourseView() {
           <Link to={`/teacher-profile/course-view/${courseId}/create-question`}>
             <ButtonPrimary className="w-full">➕ Crear nueva pregunta</ButtonPrimary>
           </Link>
+
+          <Link
+            to={`/teacher-profile/course-view/${courseId}/add-users`}
+            state={{ courseName, courseCode, coursePeriod }}
+            className="block w-full text-center py-2.5 px-4 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium transition-colors"
+          >
+            👥 Invitar estudiantes
+          </Link>
         </div>
 
         {/* Main */}

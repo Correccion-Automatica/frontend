@@ -53,6 +53,7 @@ export default function Router() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/register/invite" element={<Register />} />
             <Route path="/colors" element={<ColorGuide />} />
             <Route path="/login" element={<Login />} />
             <Route path="/contact" element={<Contact />} />

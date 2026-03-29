@@ -4,7 +4,7 @@ import { api } from "../../lib/axios";
 import { useAuth } from "../../context/AuthProvider";
 import { useCredits } from "../../context/CreditsContext";
 import { Link, useLocation } from "react-router-dom";
-import { FaBook, FaUsers, FaInbox } from "react-icons/fa";
+import { FaBook, FaUsers, FaInbox, FaUserPlus } from "react-icons/fa";
 import { FaFolderOpen, FaCog, FaQuestionCircle, FaUserAlt, FaSignOutAlt } from "react-icons/fa";
 
 export default function TeacherProfile() {
@@ -144,10 +144,28 @@ export default function TeacherProfile() {
             courses.map((course) => (
               <div
                 key={course.id}
-                className="bg-white dark:bg-gray-900 rounded-xl shadow-md p-6 flex flex-col justify-between border border-gray-100 dark:border-gray-700"
+                className="relative bg-white dark:bg-gray-900 rounded-xl shadow-md p-6 flex flex-col justify-between border border-gray-100 dark:border-gray-700 overflow-hidden group"
               >
+                {/* Botón invitación: icono en esquina superior derecha con transición */}
+                <Link
+                  to={`/teacher-profile/course-view/${course.id}/add-users`}
+                  state={{
+                    courseName: course.name,
+                    courseCode: course.acronym,
+                    coursePeriod: course.period,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute top-3 right-3 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400
+                    transition-all duration-300 ease-out
+                    hover:scale-110 hover:bg-blue-200 dark:hover:bg-blue-800/60 hover:shadow-lg hover:shadow-blue-200/50 dark:hover:shadow-blue-900/30
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                  title="Invitar estudiantes"
+                >
+                  <FaUserPlus className="text-lg" aria-hidden />
+                </Link>
+
                 <div>
-                  <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2 pr-10">
                     {course.name}
                   </h2>
                   <div className="text-sm text-gray-500 dark:text-gray-300 mb-1">
@@ -165,7 +183,7 @@ export default function TeacherProfile() {
                     courseCode: course.acronym,
                     coursePeriod: course.period,
                   }}
-                  className="mt-4 text-blue-600 hover:underline font-medium"
+                  className="mt-4 text-blue-600 dark:text-blue-400 hover:underline font-medium inline-block"
                 >
                   Ver detalles
                 </Link>

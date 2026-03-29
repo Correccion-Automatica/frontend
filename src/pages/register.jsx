@@ -1,11 +1,17 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useAuth } from "../context/AuthProvider";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { getOrganizations } from "../hooks/api";
+import { api } from "../lib/axios";
 
 function Register() {
   const { signUp, signIn, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const isInviteMode = location.pathname === "/register/invite";
+  const inviteToken = searchParams.get("token");
+
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -20,9 +26,36 @@ function Register() {
   const [orgs, setOrgs] = useState([]);
   const [orgsLoading, setOrgsLoading] = useState(true);
   const [orgsError, setOrgsError] = useState("");
+  const [inviteData, setInviteData] = useState(null);
+  const [inviteLoading, setInviteLoading] = useState(isInviteMode && !!inviteToken);
+  const [inviteError, setInviteError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
+    if (isInviteMode && inviteToken) {
+      (async () => {
+        try {
+          setInviteLoading(true);
+          setInviteError("");
+          const { data } = await api.get(`/invitations/accept/${inviteToken}`);
+          if (isMounted) {
+            setInviteData(data);
+            setForm((prev) => ({
+              ...prev,
+              email: data.email || "",
+              organizationId: data.organizationId != null ? String(data.organizationId) : "",
+              firstRole: "STUDENT",
+            }));
+          }
+        } catch (e) {
+          if (isMounted) setInviteError(e.response?.data?.error || "Enlace de invitación no válido o expirado.");
+          console.error("Invitation accept error:", e);
+        } finally {
+          if (isMounted) setInviteLoading(false);
+        }
+      })();
+      return;
+    }
     (async () => {
       try {
         setOrgsLoading(true);
@@ -40,14 +73,21 @@ function Register() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isInviteMode, inviteToken]);
 
   const emailValid = useMemo(() => /[^@\s]+@[^@\s]+\.[^@\s]+/.test(form.email), [form.email]);
   const pwdLength = useMemo(() => form.password.length > 7, [form.password]);
   const pwdMatch = useMemo(() => form.password === form.confirmPassword, [form.password, form.confirmPassword]);
   const canSubmit = useMemo(
-    () => form.fullName.trim() && emailValid && pwdMatch && !!form.firstRole && !!form.organizationId && !submitting,
-    [form.fullName, emailValid, pwdMatch, form.firstRole, form.organizationId, submitting],
+    () =>
+      form.fullName.trim() &&
+      emailValid &&
+      pwdMatch &&
+      !!form.firstRole &&
+      !!form.organizationId &&
+      !submitting &&
+      (!isInviteMode || !!inviteData),
+    [form.fullName, emailValid, pwdMatch, form.firstRole, form.organizationId, submitting, isInviteMode, inviteData],
   );
 
   const onChange = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
@@ -58,16 +98,31 @@ function Register() {
     try {
       const { fullName, email, password, confirmPassword, firstRole, organizationId } = form;
       const organizationIdNumber = Number(organizationId);
-      await signUp(fullName, email, firstRole, password, confirmPassword, organizationIdNumber);
-      const loggedUser = await signIn(email, password);
-      window.alert("Cuenta creada! Bienvenido a Automatic Correction");
-      const rawRole = (loggedUser?.role || loggedUser?.firstRole || firstRole || "").toLowerCase();
-      if (rawRole.includes("admin")) navigate("/admin-dashboard");
-      else if (rawRole.includes("teacher")) navigate("/teacher-profile");
-      else navigate("/student-profile");
+      if (isInviteMode && inviteToken) {
+        await api.post("/authentication/register", {
+          fullName,
+          email,
+          firstRole,
+          password,
+          confirmPassword,
+          organizationId: organizationIdNumber,
+          invitationToken: inviteToken,
+        });
+        const loggedUser = await signIn(email, password);
+        window.alert("Cuenta creada. Ya estás inscrito en el curso.");
+        navigate("/student-profile");
+      } else {
+        await signUp(fullName, email, firstRole, password, confirmPassword, organizationIdNumber);
+        const loggedUser = await signIn(email, password);
+        window.alert("Cuenta creada! Bienvenido a Automatic Correction");
+        const rawRole = (loggedUser?.role || loggedUser?.firstRole || firstRole || "").toLowerCase();
+        if (rawRole.includes("admin")) navigate("/admin-dashboard");
+        else if (rawRole.includes("teacher")) navigate("/teacher-profile");
+        else navigate("/student-profile");
+      }
     } catch (err) {
       console.error(err);
-      alert("Ocurrió un error al registrar. Inténtalo nuevamente.");
+      alert(err.response?.data?.error || "Ocurrió un error al registrar. Inténtalo nuevamente.");
     } finally {
       setSubmitting(false);
     }
@@ -102,9 +157,20 @@ function Register() {
           </div>
 
           <div className="relative z-10 w-full max-w-[620px] mx-auto text-left space-y-6">
-            <h1 className="text-4xl lg:text-[44px] font-bold leading-tight">Comienza tu viaje en la automatización</h1>
+            <h1 className="text-4xl lg:text-[44px] font-bold leading-tight">
+              {isInviteMode && inviteData
+                ? "Completa tu registro para unirte al curso"
+                : "Comienza tu viaje en la automatización"}
+            </h1>
             <p className="text-white/90 text-base lg:text-lg max-w-2xl leading-relaxed">
-              Regístrate para acceder a las herramientas de aprendizaje, evaluación y gestión de cursos.
+              {isInviteMode && inviteData ? (
+                <>
+                  Te han invitado al curso <strong>{inviteData.courseName}</strong>
+                  {inviteData.courseCode ? ` (${inviteData.courseCode})` : ""}. Crea tu cuenta con el correo de la invitación para acceder.
+                </>
+              ) : (
+                "Regístrate para acceder a las herramientas de aprendizaje, evaluación y gestión de cursos."
+              )}
             </p>
 
             <div className="space-y-3">
@@ -134,8 +200,24 @@ function Register() {
         {/* Panel derecho: formulario */}
         <div className="w-full h-full bg-white px-6 sm:px-10 lg:px-14 py-14 flex items-center justify-center">
           <div className="w-full max-w-xl">
+            {inviteLoading && (
+              <div className="mb-6 text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#2E8FE6]" />
+                <p className="text-[#6b7280] mt-2">Cargando invitación…</p>
+              </div>
+            )}
+            {isInviteMode && inviteError && (
+              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+                {inviteError}
+                <p className="mt-2">
+                  <a href="/register" className="text-[#2563eb] font-semibold hover:underline">Registrarse sin invitación</a>
+                </p>
+              </div>
+            )}
+            {!inviteLoading && !(isInviteMode && inviteError) && (
+            <>
             <div className="mb-6 text-left text-sm text-[#6b7280]">
-              <p>Completa tus datos para comenzar</p>
+              <p>{isInviteMode && inviteData ? "Completa tus datos para unirte al curso" : "Completa tus datos para comenzar"}</p>
             </div>
 
             <form
@@ -171,7 +253,8 @@ function Register() {
                   value={form.email}
                   onChange={onChange("email")}
                   placeholder="correo@ejemplo.com"
-                  className="mt-1 w-full h-12 rounded-xl border border-[#d1d5db] bg-white text-[#0f172a] px-4 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6]"
+                  readOnly={isInviteMode && !!inviteData}
+                  className={`mt-1 w-full h-12 rounded-xl border border-[#d1d5db] px-4 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6] ${isInviteMode && inviteData ? "bg-gray-100 text-[#0f172a] cursor-not-allowed" : "bg-white text-[#0f172a]"}`}
                   required
                   aria-invalid={!emailValid && form.email.length > 0}
                   aria-describedby={!emailValid && form.email.length > 0 ? "email-error" : undefined}
@@ -191,7 +274,8 @@ function Register() {
                   id="firstRole"
                   value={form.firstRole}
                   onChange={onChange("firstRole")}
-                  className="mt-1 w-full h-12 rounded-xl border border-[#d1d5db] bg-white px-4 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6]"
+                  disabled={isInviteMode && !!inviteData}
+                  className={`mt-1 w-full h-12 rounded-xl border border-[#d1d5db] px-4 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6] ${isInviteMode && inviteData ? "bg-gray-100 cursor-not-allowed" : "bg-white"}`}
                   required
                 >
                   <option value="" disabled>
@@ -200,6 +284,9 @@ function Register() {
                   <option value="TEACHER">Profesor</option>
                   <option value="STUDENT">Estudiante</option>
                 </select>
+                {isInviteMode && inviteData && (
+                  <p className="mt-1 text-xs text-[#6b7280]">Registro por invitación: rol estudiante.</p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -273,27 +360,39 @@ function Register() {
                 <label htmlFor="organizationId" className="block font-semibold text-[#0f172a]">
                   Organización <span className="text-red-500">*</span>
                 </label>
-                <select
-                  id="organizationId"
-                  value={form.organizationId}
-                  onChange={onChange("organizationId")}
-                  className="mt-1 w-full h-12 rounded-xl border border-[#d1d5db] bg-white px-4 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6]"
-                  required
-                  disabled={orgsLoading || !!orgsError}
-                >
-                  <option value="" disabled>
-                    {orgsLoading ? "Cargando organizaciones…" : "Selecciona tu organización"}
-                  </option>
-                  {orgs.map((o) => (
-                    <option key={o.id} value={String(o.id)}>
-                      {o.name ?? o.nombre ?? `Org #${o.id}`}
-                    </option>
-                  ))}
-                </select>
-                {orgsError && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {orgsError} Intenta recargar la página.
-                  </p>
+                {isInviteMode && inviteData ? (
+                  <input
+                    id="organizationId"
+                    type="text"
+                    readOnly
+                    value={inviteData.organizationName || `Organización #${inviteData.organizationId}`}
+                    className="mt-1 w-full h-12 rounded-xl border border-[#d1d5db] bg-gray-100 text-[#0f172a] px-4 cursor-not-allowed"
+                  />
+                ) : (
+                  <>
+                    <select
+                      id="organizationId"
+                      value={form.organizationId}
+                      onChange={onChange("organizationId")}
+                      className="mt-1 w-full h-12 rounded-xl border border-[#d1d5db] bg-white px-4 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6]"
+                      required
+                      disabled={orgsLoading || !!orgsError}
+                    >
+                      <option value="" disabled>
+                        {orgsLoading ? "Cargando organizaciones…" : "Selecciona tu organización"}
+                      </option>
+                      {orgs.map((o) => (
+                        <option key={o.id} value={String(o.id)}>
+                          {o.name ?? o.nombre ?? `Org #${o.id}`}
+                        </option>
+                      ))}
+                    </select>
+                    {orgsError && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {orgsError} Intenta recargar la página.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -313,6 +412,8 @@ function Register() {
                 </p>
               </div>
             </form>
+            </>
+            )}
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { gsap } from "gsap";
 import * as XLSX from "xlsx";
 import BackButton from "../../../../components/BackButton";
 import { FaUser, FaUserTie, FaGraduationCap, FaPlus, FaFileExcel, FaEnvelope, FaTrash, FaCheckCircle, FaTimesCircle, FaSearch, FaFilter } from "react-icons/fa";
+import { api } from "../../../../lib/axios";
 
 export default function AddUsersToCourse() {
   const { courseId } = useParams();
@@ -37,19 +38,13 @@ export default function AddUsersToCourse() {
     const fetchEnrolledUsers = async () => {
       try {
         setLoading(true);
-        // TODO: Reemplazar con el endpoint real cuando esté disponible
-        // const response = await api.get(`/courses/${courseId}/users`);
-        // setEnrolledUsers(response.data);
-        
-        // Datos de ejemplo para desarrollo
-        setEnrolledUsers([
-          { id: 1, email: "estudiante1@example.com", fullName: "Juan Pérez", role: "STUDENT" },
-          { id: 2, email: "estudiante2@example.com", fullName: "María González", role: "STUDENT" },
-          { id: 3, email: "auxiliar1@example.com", fullName: "Carlos Rodríguez", role: "AUXILIARY_TEACHER" },
-        ]);
+        setError(null);
+        const response = await api.get(`/courses/${courseId}/users`);
+        setEnrolledUsers(Array.isArray(response.data) ? response.data : []);
       } catch (err) {
         console.error("Error al cargar usuarios:", err);
-        setError("No se pudieron cargar los usuarios inscritos.");
+        setError(err.response?.data?.error || "No se pudieron cargar los usuarios inscritos.");
+        setEnrolledUsers([]);
       } finally {
         setLoading(false);
       }
@@ -88,10 +83,11 @@ export default function AddUsersToCourse() {
     }
   }, [loading]);
 
-  // Función para obtener el icono según el rol
+  // Función para obtener el icono según el rol (API devuelve STUDENT | AUX-TEACHER)
   const getRoleIcon = (role) => {
     switch (role) {
       case "AUXILIARY_TEACHER":
+      case "AUX-TEACHER":
         return <FaUserTie className="text-blue-500" />;
       case "STUDENT":
         return <FaGraduationCap className="text-green-500" />;
@@ -100,10 +96,10 @@ export default function AddUsersToCourse() {
     }
   };
 
-  // Función para obtener el texto del rol
   const getRoleText = (role) => {
     switch (role) {
       case "AUXILIARY_TEACHER":
+      case "AUX-TEACHER":
         return "Docente Auxiliar";
       case "STUDENT":
         return "Estudiante";
@@ -112,10 +108,10 @@ export default function AddUsersToCourse() {
     }
   };
 
-  // Función para obtener el color del badge según el rol
   const getRoleBadgeColor = (role) => {
     switch (role) {
       case "AUXILIARY_TEACHER":
+      case "AUX-TEACHER":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
       case "STUDENT":
         return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
@@ -247,34 +243,51 @@ export default function AddUsersToCourse() {
     setError(null);
 
     try {
-      // TODO: Reemplazar con el endpoint real cuando esté disponible
-      // await api.post(`/courses/${courseId}/users/invite`, { emails, role: "STUDENT" });
-      
-      // Simulación
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      // Actualizar lista de usuarios
-      const newUsers = emails.map((email, index) => ({
-        id: Date.now() + index,
-        email,
-        fullName: email.split("@")[0],
-        role: "STUDENT",
-      }));
-      
-      setEnrolledUsers((prev) => [...prev, ...newUsers]);
+      const { data } = await api.post(`/courses/${courseId}/users/invite`, { emails, role: "STUDENT" });
+      const enrolled = data.enrolled || [];
+      const invited = data.invited || [];
+      const newFromEnrolled = enrolled
+        .filter((e) => e.userId && e.alreadyEnrolled === false)
+        .map((e) => ({ id: e.userId, email: e.email, fullName: e.email?.split("@")[0], role: "STUDENT" }));
+      if (newFromEnrolled.length > 0) {
+        setEnrolledUsers((prev) => [...prev, ...newFromEnrolled]);
+      }
       setManualEmails("");
-      
-      // Animación de éxito
-      gsap.to(addPanelRef.current, {
-        scale: 1.02,
-        duration: 0.2,
-        yoyo: true,
-        repeat: 1,
-        ease: "power2.inOut",
-      });
+      const totalProcessed = enrolled.length + invited.length;
+      const hasEmailErrors = [...enrolled, ...invited].some((x) => x.emailError);
+      const emailErrors = [...enrolled, ...invited].filter((x) => x.emailError).map((x) => `${x.email}: ${x.emailError}`);
+      if (totalProcessed > 0) {
+        const msg = [
+          enrolled.length > 0 && `${enrolled.length} agregado(s) al curso`,
+          invited.length > 0 && `${invited.length} invitación(es) creada(s)`,
+        ].filter(Boolean).join(". ");
+        setError(hasEmailErrors ? `Correo no enviado: ${emailErrors.join("; ")}` : null);
+        if (addPanelRef.current) {
+          gsap.to(addPanelRef.current, { scale: 1.02, duration: 0.2, yoyo: true, repeat: 1, ease: "power2.inOut" });
+        }
+        if (hasEmailErrors) {
+          alert(`${msg}\n\nPero el correo no pudo enviarse:\n${emailErrors.join("\n")}`);
+        } else {
+          const sent = invited.filter((i) => i.status === "invitation_sent").map((i) => i.email);
+          const alreadyPending = invited.filter((i) => i.status === "already_invited").map((i) => i.email);
+          if (sent.length > 0) {
+            alert(`${msg}\n\nEl correo de invitación se envió a: ${sent.join(", ")}\nQue el invitado revise esa dirección (y la carpeta de spam).`);
+          }
+          if (alreadyPending.length > 0) {
+            alert(`${alreadyPending.length} invitación(es) ya existían (no se reenvió correo): ${alreadyPending.join(", ")}`);
+          }
+          if (sent.length === 0 && alreadyPending.length === 0 && invited.length === 0) {
+            alert(msg);
+          }
+        }
+      }
+      if (enrolled.length > 0) {
+        const again = await api.get(`/courses/${courseId}/users`);
+        setEnrolledUsers(Array.isArray(again.data) ? again.data : []);
+      }
     } catch (err) {
       console.error("Error al agregar usuarios:", err);
-      setError("No se pudieron agregar los usuarios. Intenta nuevamente.");
+      setError(err.response?.data?.error || "No se pudieron agregar los usuarios. Intenta nuevamente.");
     } finally {
       setAddingUsers(false);
     }
@@ -347,43 +360,33 @@ export default function AddUsersToCourse() {
             return;
           }
 
-          // Enviar al backend
-          // TODO: Reemplazar con el endpoint real cuando esté disponible
-          // const formData = new FormData();
-          // formData.append("file", selectedFile);
-          // await api.post(`/courses/${courseId}/users/invite/excel`, formData, {
-          //   headers: { "Content-Type": "multipart/form-data" },
-          // });
-          
-          // O enviar los datos procesados:
-          // await api.post(`/courses/${courseId}/users/invite/bulk`, { users, role: "STUDENT" });
-          
-          // Simulación
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          
-          // Actualizar lista de usuarios (simulación)
-          const newUsers = users.map((user, index) => ({
-            id: Date.now() + index,
-            email: user.correo,
-            fullName: user.fullName,
+          const response = await api.post(`/courses/${courseId}/users/invite`, {
+            users: users.map((u) => ({ email: u.correo, fullName: u.fullName })),
             role: "STUDENT",
-          }));
-          
-          setEnrolledUsers((prev) => [...prev, ...newUsers]);
-          
-          // Limpiar
+          });
+          const enrolled = (response.data?.enrolled) || [];
+          const invited = (response.data?.invited) || [];
+          const newFromEnrolled = enrolled
+            .filter((e) => e.userId && e.alreadyEnrolled === false)
+            .map((e) => ({ id: e.userId, email: e.email, fullName: e.email?.split("@")[0], role: "STUDENT" }));
+          if (newFromEnrolled.length > 0) {
+            setEnrolledUsers((prev) => [...prev, ...newFromEnrolled]);
+          }
           setSelectedFile(null);
           setFileName("");
           setFilePreview([]);
-          
-          // Animación de éxito
-          gsap.to(addPanelRef.current, {
-            scale: 1.02,
-            duration: 0.2,
-            yoyo: true,
-            repeat: 1,
-            ease: "power2.inOut",
-          });
+          const msg = [
+            enrolled.length > 0 && `${enrolled.length} agregado(s) al curso`,
+            invited.length > 0 && `${invited.length} invitación(es) enviada(s) por correo`,
+          ].filter(Boolean).join(". ");
+          if (msg) alert(msg);
+          if (enrolled.length > 0 || invited.length > 0) {
+            const again = await api.get(`/courses/${courseId}/users`);
+            setEnrolledUsers(Array.isArray(again.data) ? again.data : []);
+          }
+          if (addPanelRef.current) {
+            gsap.to(addPanelRef.current, { scale: 1.02, duration: 0.2, yoyo: true, repeat: 1, ease: "power2.inOut" });
+          }
         } catch (err) {
           console.error("Error al procesar Excel:", err);
           setError("No se pudo procesar el archivo Excel. Verifica el formato e intenta nuevamente.");
@@ -404,15 +407,13 @@ export default function AddUsersToCourse() {
     }
   };
 
-  // Filtrar usuarios según búsqueda y rol
   const filteredUsers = enrolledUsers.filter((user) => {
-    const matchesSearch = 
+    const matchesSearch =
       !searchQuery ||
       user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    
+    const roleMatch = user.role === roleFilter || (roleFilter === "AUXILIARY_TEACHER" && user.role === "AUX-TEACHER");
+    const matchesRole = roleFilter === "all" || roleMatch;
     return matchesSearch && matchesRole;
   });
 
