@@ -10,6 +10,8 @@ export default function Login() {
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -26,8 +28,10 @@ export default function Login() {
   }, [location.state]);
 
   const handleSubmit = async (e) => {
+
     e.preventDefault();
     setError("");
+    setSubmitting(true); 
 
     try {
       const user = await signIn(email, password);
@@ -76,8 +80,12 @@ export default function Login() {
         message = "No existe una cuenta con este correo electrónico.";
       }
       setError(message);
+
+      setSubmitting(false); 
     }
   };
+
+  const busy = loading || submitting; 
 
   return (
     <div
@@ -166,9 +174,9 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={loading}
+                disabled={busy} 
                 className={`w-full px-4 py-3 rounded-lg border border-(--color-border) bg-(--color-background) text-(--color-text) placeholder-(--color-muted) text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
+                  busy ? "opacity-50 cursor-not-allowed" : "" 
                 }`}
                 placeholder="tu@email.com"
               />
@@ -188,9 +196,9 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={loading}
+                disabled={busy} 
                 className={`w-full px-4 py-3 rounded-lg border border-(--color-border) bg-(--color-background) text-(--color-text) placeholder-(--color-muted) text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
+                  busy ? "opacity-50 cursor-not-allowed" : "" 
                 }`}
                 placeholder="••••••••"
               />
@@ -206,14 +214,14 @@ export default function Login() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={busy} 
               className={`w-full py-3 sm:py-4 text-base sm:text-lg font-bold rounded-lg transition-all duration-200 shadow-lg hover:cursor-pointer ${
-                loading
+                busy 
                   ? "bg-gray-400 text-gray-200 cursor-not-allowed"
                   : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-xl transform hover:-translate-y-0.5"
               }`}
             >
-              {loading ? "Iniciando sesión..." : "Iniciar sesión"}
+              {busy ? "Iniciando sesión..." : "Iniciar sesión"} 
             </button>
 
             <div className="text-center text-sm sm:text-base text-gray-600">

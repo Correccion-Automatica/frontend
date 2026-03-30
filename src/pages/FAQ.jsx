@@ -299,7 +299,7 @@ const FAQ = () => {
   };
 
   return (
-    <div className="min-h-screen px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16 bg-[var(--color-background)] transition-colors duration-300">
+    <div className="min-h-screen px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16 bg-(--color-background) transition-colors duration-300">
       <div className="mx-auto max-w-5xl">
         {/* Header */}
         <div style={{

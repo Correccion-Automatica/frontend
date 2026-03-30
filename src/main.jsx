@@ -5,6 +5,8 @@ import './index.css';
 
 import Router from './router.jsx';
 import  AuthProvider  from './context/AuthProvider.jsx';
+import CreditsProvider from "./context/CreditsContext";
+
 
 import './i18n.jsx'
 
@@ -12,7 +14,9 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <Router />
+        <CreditsProvider>
+          <Router />
+        </CreditsProvider>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,

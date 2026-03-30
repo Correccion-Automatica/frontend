@@ -11,17 +11,13 @@ const testRegistration = async () => {
   };
 
   try {
-    console.log("🧪 Iniciando test de registro...");
     
     // Test 1: CSRF Token
-    console.log("1️⃣ Obteniendo CSRF token...");
     const csrfResponse = await fetch(`${import.meta.env.VITE_APP_API_URL}/authentication/csrf`, {
       credentials: 'include'
     });
-    console.log("✅ CSRF:", csrfResponse.status);
 
     // Test 2: Registro
-    console.log("2️⃣ Enviando datos de registro...");
     const registerResponse = await fetch(`${import.meta.env.VITE_APP_API_URL}/authentication/register`, {
       method: 'POST',
       headers: {
@@ -32,13 +28,10 @@ const testRegistration = async () => {
     });
 
     const registerResult = await registerResponse.json();
-    console.log("📝 Resultado registro:", registerResult);
 
     if (registerResponse.ok) {
-      console.log("✅ Registro exitoso!");
       return { success: true, data: registerResult };
     } else {
-      console.log("❌ Error en registro:", registerResult.error);
       return { success: false, error: registerResult.error };
     }
 
@@ -47,6 +40,3 @@ const testRegistration = async () => {
     return { success: false, error: error.message };
   }
 };
-
-// Para usar: testRegistration().then(console.log)
-console.log("📋 Test de registro disponible. Ejecuta: testRegistration()");

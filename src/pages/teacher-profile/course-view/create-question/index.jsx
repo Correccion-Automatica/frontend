@@ -4,10 +4,24 @@ import QuestionForm from "../../../../components/QuestionForm";
 import CreditOptionDisplay from "../../../../components/CreditOptionDisplay";
 import PageHeader from "../../../../components/PageHeader";
 import { api } from "../../../../lib/axios";
+import { useAuth } from "../../../../context/AuthProvider";
+import PseudoGuidelineInfo from "../../../../components/PseudoGuidelineInfo";
+
+function datetimeLocalToIsoUtc(datetimeLocalValue) {
+  const d = new Date(datetimeLocalValue);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
 
 export default function CreateQuestion() {
   const { courseId } = useParams();
   const navigate = useNavigate();
+
+  const { user } = useAuth();
+  const sidebarCredits = Number(user?.remaining_credits ?? user?.credits ?? 0);
+  const sidebarName = user?.fullName || user?.name || "Usuario";
+
+  const [pseudoGuideline, setPseudoGuideline] = useState("");
 
   const [title, setTitle] = useState("");
   const [days, setDays] = useState(0);
@@ -38,19 +52,36 @@ export default function CreateQuestion() {
         return null;
       }
 
+      const startDatetime = datetimeLocalToIsoUtc(dueDate);
+      if (!startDatetime) {
+        alert("La fecha ingresada no es válida.");
+        return null;
+      }
+
+      let endDatetime = null;
+      if (startDatetime && totalDurationSeconds > 0) {
+        const start = new Date(startDatetime);
+        if (!Number.isNaN(start.getTime())) {
+          const end = new Date(start.getTime() + totalDurationSeconds * 1000);
+          endDatetime = end.toISOString();
+        }
+      }
+
       const body = {
         title,
         courseId: Number(courseId),
         content,
         duration: totalDurationSeconds || null,
-        endDatetime: dueDate ? new Date(dueDate).toISOString() : null,
+        startDatetime, // ✅ inicio real
+        endDatetime,   // ✅ fin real
+        pseudoGuideline: pseudoGuideline?.trim() ? pseudoGuideline.trim() : null,
       };
 
       const res = await api.post("/questions", body);
       return res.data;
     } catch (err) {
       console.error("❌ Error al crear la pregunta:", err);
-      alert("Ocurrió un error al crear la pregunta. Revisa la consola.");
+      alert("La pregunta con ese título ya existe. Por favor, elige otro título.");
       return null;
     } finally {
       setLoading(false);
@@ -60,23 +91,30 @@ export default function CreateQuestion() {
   const handleCreate = async () => {
     const created = await handleSave();
     if (!created?.id) return;
-    navigate(`/teacher-profile/course-view/${courseId}/question/${created.id}`, {state: { backTo: `/teacher-profile/course-view/${courseId}` }, replace: true,});
+    navigate(`/teacher-profile/course-view/${courseId}/question/${created.id}`, {
+      state: { backTo: `/teacher-profile/course-view/${courseId}` },
+      replace: true,
+    });
   };
 
   const handleCancel = () => {
-    navigate(`/teacher-profile/course-view/${courseId}`);
+    navigate(-1);
   };
 
   return (
     <div className="mt-6 px-4 space-y-6">
       <PageHeader columns={["Crear Pregunta"]} />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-4 space-y-4 lg:sticky lg:top-24 self-start">
+          <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1">
-          <CreditOptionDisplay userName="Carolina" credits={2500} />
+          <PseudoGuidelineInfo
+            value={pseudoGuideline}
+            onChange={setPseudoGuideline}
+          />
         </div>
 
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-8">
           <QuestionForm
             mode="create"
             title={title}

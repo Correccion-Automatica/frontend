@@ -1,457 +1,152 @@
-﻿export default function Pricing() {
-  const plans = [
-    {
-      name: "Free",
-      price: "$0",
-      period: "/mes",
-      originalPrice: null,
-      description: "Para siempre",
-      badge: null,
-      features: [
-        "5 correcciones gratuitas al mes",
-        "Preguntas de opción múltiple",
-        "Reportes básicos",
-        "Soporte por email"
-      ],
-      buttonText: "Comenzar Gratis",
-      buttonStyle: "secondary",
-      popular: false
-    },
-    {
-      name: "Educator",
-      price: "$15",
-      period: "/mes",
-      originalPrice: "$25",
-      description: "ex. tax",
-      badge: null,
-      features: [
-        "100 correcciones mensuales",
-        "Preguntas abiertas y cerradas",
-        "Análisis detallado",
-        "Exportación de resultados",
-        "Soporte prioritario"
-      ],
-      buttonText: "Suscribirse",
-      buttonStyle: "primary",
-      popular: false
-    },
-    {
-      name: "Professional",
-      price: "$45",
-      period: "/mes",
-      originalPrice: "$75",
-      description: "ex. tax",
-      badge: "Más Popular",
-      features: [
-        "500 correcciones mensuales",
-        "Corrección automática avanzada",
-        "Integración con LMS",
-        "Reportes analytics",
-        "API access básico"
-      ],
-      buttonText: "Suscribirse",
-      buttonStyle: "featured",
-      popular: true
-    },
-    {
-      name: "Institution",
-      price: "$120",
-      period: "/mes",
-      originalPrice: "$180",
-      description: "ex. tax",
-      badge: null,
-      features: [
-        "Correcciones ilimitadas",
-        "Multi-usuario y roles",
-        "Dashboard administrativo",
-        "Soporte dedicado 24/7",
-        "Integración completa API"
-      ],
-      buttonText: "Contactar Ventas",
-      buttonStyle: "primary",
-      popular: false
-    }
-  ];
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
-  const toggles = [
-    { id: 'individual', label: 'Individual', active: true },
-    { id: 'institucional', label: 'Institucional', active: false }
-  ];
+const plans = [
+  {
+    name: 'Free — “Explorador”',
+    price: '$0',
+    period: '/ mes. Uso único.',
+    badge: null,
+    description: 'Para probar la plataforma',
+    features: ['400 créditos (≈ 1 pauta o 40 correcciones)'],
+    buttonText: 'Comenzar gratis',
+    buttonStyle: 'secondary',
+    buttonAction: 'register',
+  },
+  {
+    name: 'Plan individual — “Impulsor”',
+    price: '$4.990',
+    period: '/ mes',
+    badge: 'Más popular',
+    description: 'Docentes que hacen preguntas ocasionalmente',
+    features: ['1 200 créditos (≈ 3 pautas o 120 correcciones)'],
+    buttonText: 'Suscribirme',
+    buttonStyle: 'featured',
+    buttonAction: 'register',
+  },
+  {
+    name: 'Enterprise — “Automatizador”',
+    price: '$3.990',
+    period: ' x Docente o Curso',
+    badge: 'Ideal para organizaciones',
+    description: 'Organizaciones, colegios o universidades',
+    features: ['1 330 créditos por Docente o Curso (≈ 4 pautas o 133 correcciones)'],
+    buttonText: 'Suscribirme',
+    buttonStyle: 'featured',
+    buttonAction: 'register',
+  },
+];
+
+const creditPacks = [
+  { name: "Mini Pack", credits: 500, price: 2900, pricePerCredit: "$5,8", relation: "Para probar" },
+  { name: "Medium Pack", credits: 1000, price: 4900, pricePerCredit: "$4,9", relation: "Más conveniente" },
+  { name: "Max Pack", credits: 1500, price: 6900, pricePerCredit: "$4,6", relation: "Mejor relación" },
+];
+
+const formatCLP = (value) =>
+  new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(value);
+
+export default function Pricing() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    document.body.classList.add("pricing-page-bg");
+    return () => document.body.classList.remove("pricing-page-bg");
+  }, []);
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-      paddingTop: '80px',
-      paddingBottom: '60px',
-      paddingLeft: '20px',
-      paddingRight: '20px'
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        
-        {/* Header - Más compacto */}
-        <div style={{ textAlign: 'center', marginBottom: '50px' }}>
-          <h1 style={{ 
-            fontSize: '2.5rem', 
-            fontWeight: 'bold', 
-            color: 'white', 
-            marginBottom: '15px',
-            textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-            lineHeight: '1.2'
-          }}>
-            Desbloquea el poder de <br />
-            <span style={{ color: '#a78bfa' }}>Automatic Correction</span>
-          </h1>
-          <p style={{ 
-            fontSize: '1.1rem', 
-            color: 'rgba(255,255,255,0.9)', 
-            marginBottom: '35px',
-            maxWidth: '500px',
-            margin: '0 auto 35px'
-          }}>
-            Una suscripción, todas las plataformas
-          </p>
+    <div className="relative min-h-screen flex flex-col bg-gradient-to-br from-[#05030a] via-[#0a0820] to-[#05030a] text-slate-100 overflow-hidden pb-72">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -left-10 top-10 w-96 h-96 bg-purple-700/25 blur-3xl" />
+        <div className="absolute right-0 bottom-0 w-[26rem] h-[26rem] bg-fuchsia-500/20 blur-[140px]" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[1100px] h-[1100px] bg-purple-500/10 rounded-full blur-[180px]" />
+        <div className="absolute inset-x-0 bottom-0 h-[55vh] bg-gradient-to-b from-transparent via-[#05030a]/80 to-[#05030a]" />
+      </div>
 
-          {/* Toggle - Más pequeño */}
-          <div style={{
-            display: 'inline-flex',
-            backgroundColor: 'rgba(255,255,255,0.15)',
-            borderRadius: '40px',
-            padding: '4px',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            marginBottom: '25px'
-          }}>
-            {toggles.map((toggle) => (
-              <button
-                key={toggle.id}
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: '20px',
-                  border: 'none',
-                  backgroundColor: toggle.active ? 'rgba(167, 139, 250, 0.9)' : 'transparent',
-                  color: 'white',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  fontSize: '0.9rem'
-                }}
-                onMouseEnter={(e) => {
-                  if (!toggle.active) {
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!toggle.active) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }
-                }}
-              >
-                {toggle.label}
-              </button>
-            ))}
-          </div>
+      <div className="relative z-10 flex-1 max-w-6xl mx-auto px-4 py-12 space-y-12">
+        <header className="text-center space-y-3">
+          <h1 className="text-3xl md:text-4xl font-bold text-white">Desbloquea el poder de Automatic Correction</h1>
+          <p className="text-base md:text-lg text-slate-200 max-w-2xl mx-auto">Una suscripción, todas las plataformas</p>
+        </header>
 
-          {/* Billing Toggle - Más compacto */}
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            gap: '12px',
-            flexWrap: 'wrap'
-          }}>
-            <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem' }}>Anual</span>
-            <div style={{
-              position: 'relative',
-              width: '50px',
-              height: '26px',
-              backgroundColor: '#a78bfa',
-              borderRadius: '13px',
-              cursor: 'pointer'
-            }}>
-              <div style={{
-                position: 'absolute',
-                top: '2px',
-                right: '2px',
-                width: '22px',
-                height: '22px',
-                backgroundColor: 'white',
-                borderRadius: '50%',
-                transition: 'all 0.3s ease'
-              }}></div>
-            </div>
-            <span style={{ color: 'white', fontWeight: '500', fontSize: '0.9rem' }}>Mensual</span>
-            <span style={{
-              backgroundColor: '#fbbf24',
-              color: '#92400e',
-              padding: '3px 10px',
-              borderRadius: '15px',
-              fontSize: '0.75rem',
-              fontWeight: '600'
-            }}>
-              20% off 🔥
-            </span>
-          </div>
-        </div>
-
-        {/* Plans Grid - Optimizado para 4 columnas */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-          gap: '20px',
-          marginBottom: '50px'
-        }}>
-          {plans.map((plan, index) => (
-            <div 
-              key={plan.name} 
-              style={{
-                backgroundColor: plan.popular ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.95)',
-                borderRadius: '20px',
-                padding: '30px 24px',
-                position: 'relative',
-                border: plan.popular ? '2px solid #a78bfa' : '1px solid rgba(255,255,255,0.3)',
-                boxShadow: plan.popular ? '0 15px 35px rgba(0,0,0,0.15)' : '0 8px 25px rgba(0,0,0,0.1)',
-                backdropFilter: 'blur(10px)',
-                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                transform: plan.popular ? 'scale(1.02) translateY(-5px)' : 'scale(1) translateY(0px)',
-                cursor: 'pointer',
-                height: 'fit-content'
-              }}
-              onMouseEnter={(e) => {
-                const card = e.currentTarget;
-                if (plan.popular) {
-                  card.style.transform = 'scale(1.05) translateY(-10px)';
-                  card.style.boxShadow = '0 25px 50px rgba(0,0,0,0.2), 0 0 0 1px rgba(167, 139, 250, 0.3)';
-                } else {
-                  card.style.transform = 'scale(1.03) translateY(-8px)';
-                  card.style.boxShadow = '0 20px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(167, 139, 250, 0.2)';
-                  card.style.backgroundColor = 'rgba(255,255,255,0.98)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                const card = e.currentTarget;
-                if (plan.popular) {
-                  card.style.transform = 'scale(1.02) translateY(-5px)';
-                  card.style.boxShadow = '0 15px 35px rgba(0,0,0,0.15)';
-                } else {
-                  card.style.transform = 'scale(1) translateY(0px)';
-                  card.style.boxShadow = '0 8px 25px rgba(0,0,0,0.1)';
-                  card.style.backgroundColor = 'rgba(255,255,255,0.95)';
-                }
-              }}
+        <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {plans.map((plan) => (
+            <article
+              key={plan.name}
+              className="rounded-2xl border border-white/10 bg-white/5 shadow-lg shadow-black/30 p-6 flex flex-col transition hover:-translate-y-1 hover:shadow-purple-900/40"
             >
-              
-              {/* Badge */}
               {plan.badge && (
-                <div style={{
-                  position: 'absolute',
-                  top: '-12px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  backgroundColor: '#a78bfa',
-                  color: 'white',
-                  padding: '6px 16px',
-                  borderRadius: '15px',
-                  fontSize: '0.8rem',
-                  fontWeight: '600',
-                  boxShadow: '0 4px 12px rgba(167, 139, 250, 0.4)'
-                }}>
+                <div className="inline-flex items-center rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold mb-3">
                   {plan.badge}
                 </div>
               )}
 
-              {/* Plan Header - Más compacto */}
-              <div style={{ textAlign: 'center', marginBottom: '25px' }}>
-                <h3 style={{ 
-                  fontSize: '1.3rem', 
-                  fontWeight: '600', 
-                  color: '#374151', 
-                  marginBottom: '12px' 
-                }}>
-                  {plan.name}
-                </h3>
-                
-                <div style={{ marginBottom: '8px' }}>
-                  {plan.originalPrice && (
-                    <span style={{
-                      fontSize: '1rem',
-                      color: '#9ca3af',
-                      textDecoration: 'line-through',
-                      marginRight: '8px'
-                    }}>
-                      {plan.originalPrice}
-                    </span>
-                  )}
-                  <span style={{ 
-                    fontSize: '2.5rem', 
-                    fontWeight: 'bold', 
-                    color: plan.popular ? '#7c3aed' : '#374151'
-                  }}>
-                    {plan.price}
-                  </span>
-                  <span style={{ 
-                    fontSize: '1rem', 
-                    color: '#6b7280' 
-                  }}>
-                    {plan.period}
-                  </span>
-                </div>
-                
-                <p style={{ 
-                  color: '#6b7280', 
-                  fontSize: '0.85rem' 
-                }}>
-                  {plan.description}
-                </p>
+              <div className="text-center mb-4">
+                <h3 className="text-xl font-semibold text-white">{plan.name}</h3>
+                <p className="text-sm text-slate-200/90 mt-1">{plan.description}</p>
               </div>
 
-              {/* Features - Lista más compacta */}
-              <div style={{ marginBottom: '25px' }}>
-                <p style={{ 
-                  fontWeight: '600', 
-                  color: '#374151', 
-                  marginBottom: '12px',
-                  fontSize: '0.95rem'
-                }}>
-                  Incluye:
-                </p>
-                <ul style={{ listStyle: 'none', padding: 0 }}>
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} style={{ 
-                      display: 'flex', 
-                      alignItems: 'flex-start', 
-                      marginBottom: '8px',
-                      fontSize: '0.85rem',
-                      color: '#4b5563',
-                      lineHeight: '1.4'
-                    }}>
-                      <span style={{ 
-                        color: '#10b981', 
-                        marginRight: '8px', 
-                        fontSize: '1rem',
-                        lineHeight: '1',
-                        marginTop: '2px'
-                      }}>
-                        ✓
-                      </span>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
+              <div className="text-center mb-4">
+                <span className="text-3xl font-bold text-white">{plan.price}</span>
+                <span className="text-sm text-slate-300 ml-1">{plan.period}</span>
               </div>
 
-              {/* Button */}
-              <button 
-                style={{
-                  width: '100%',
-                  padding: '14px 20px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  fontSize: '0.95rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  backgroundColor: plan.buttonStyle === 'featured' ? '#7c3aed' : 
-                                 plan.buttonStyle === 'primary' ? '#3b82f6' : '#f3f4f6',
-                  color: plan.buttonStyle === 'secondary' ? '#374151' : 'white',
-                  boxShadow: plan.buttonStyle !== 'secondary' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
-                }}
-                onMouseEnter={(e) => {
-                  const btn = e.currentTarget;
-                  if (plan.buttonStyle === 'featured') {
-                    btn.style.backgroundColor = '#8b5cf6';
-                    btn.style.transform = 'translateY(-2px)';
-                    btn.style.boxShadow = '0 8px 20px rgba(124, 58, 237, 0.4)';
-                  } else if (plan.buttonStyle === 'primary') {
-                    btn.style.backgroundColor = '#2563eb';
-                    btn.style.transform = 'translateY(-2px)';
-                    btn.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.4)';
-                  } else {
-                    btn.style.backgroundColor = '#e5e7eb';
-                    btn.style.transform = 'translateY(-1px)';
-                    btn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  const btn = e.currentTarget;
-                  if (plan.buttonStyle === 'featured') {
-                    btn.style.backgroundColor = '#7c3aed';
-                    btn.style.transform = 'translateY(0px)';
-                    btn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                  } else if (plan.buttonStyle === 'primary') {
-                    btn.style.backgroundColor = '#3b82f6';
-                    btn.style.transform = 'translateY(0px)';
-                    btn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                  } else {
-                    btn.style.backgroundColor = '#f3f4f6';
-                    btn.style.transform = 'translateY(0px)';
-                    btn.style.boxShadow = 'none';
-                  }
-                }}
+              <ul className="space-y-2 text-sm text-slate-200 mb-5">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex gap-2 items-start">
+                    <span className="text-emerald-400 mt-1">•</span>
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                type="button"
+                className={`mt-auto w-full rounded-xl px-4 py-3 text-sm font-semibold text-center transition shadow-md shadow-black/20 hover:brightness-110 ${
+                  plan.buttonStyle === "featured"
+                    ? "bg-gradient-to-r from-primary to-purple-600 text-primary-foreground"
+                    : plan.buttonStyle === "secondary"
+                    ? "bg-white/10 text-white"
+                    : "bg-primary text-primary-foreground"
+                }`}
+                onClick={() => navigate("/register")}
               >
                 {plan.buttonText}
               </button>
-            </div>
+            </article>
           ))}
-        </div>
+        </section>
 
-        {/* Additional Info - Más compacto */}
-        <div style={{ 
-          textAlign: 'center', 
-          backgroundColor: 'rgba(255,255,255,0.1)', 
-          borderRadius: '16px', 
-          padding: '30px 25px',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255,255,255,0.2)'
-        }}>
-          <h3 style={{ 
-            fontSize: '1.5rem', 
-            fontWeight: '600', 
-            color: 'white', 
-            marginBottom: '12px' 
-          }}>
-            ¿Necesitas algo diferente?
-          </h3>
-          <p style={{ 
-            color: 'rgba(255,255,255,0.9)', 
-            marginBottom: '20px',
-            fontSize: '1rem',
-            maxWidth: '500px',
-            margin: '0 auto 20px',
-            lineHeight: '1.5'
-          }}>
-            Soluciones personalizadas para instituciones educativas grandes, 
-            con volúmenes especiales y características específicas.
-          </p>
-          <button 
-            style={{
-              padding: '12px 25px',
-              backgroundColor: 'white',
-              color: '#7c3aed',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '0.95rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f8fafc';
-              e.currentTarget.style.transform = 'translateY(-3px) scale(1.05)';
-              e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'white';
-              e.currentTarget.style.transform = 'translateY(0px) scale(1)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            }}
-          >
-            Contactar Ventas
-          </button>
-        </div>
+        <section className="bg-white/5 border border-white/10 rounded-2xl shadow-lg shadow-black/30 overflow-hidden">
+          <div className="px-6 py-5 border-b border-white/10 flex flex-col gap-1">
+            <h2 className="text-xl font-semibold text-white">Paquetes de créditos</h2>
+            <p className="text-sm text-slate-200/90">Puedes mezclarlos con cualquier plan para cubrir demanda puntual.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm text-slate-100">
+              <thead className="bg-white/5 text-left text-slate-200">
+                <tr>
+                  <th className="px-6 py-3 font-medium">Paquete</th>
+                  <th className="px-6 py-3 font-medium">Créditos</th>
+                  <th className="px-6 py-3 font-medium">Precio</th>
+                  <th className="px-6 py-3 font-medium">CLP/crédito</th>
+                  <th className="px-6 py-3 font-medium">Relación</th>
+                </tr>
+              </thead>
+              <tbody>
+                {creditPacks.map((pack, index) => (
+                  <tr key={pack.name} className={index % 2 === 0 ? "bg-white/5" : "bg-white/10"}>
+                    <td className="px-6 py-4 font-medium text-white">{pack.name}</td>
+                    <td className="px-6 py-4">{pack.credits.toLocaleString("es-CL")}</td>
+                    <td className="px-6 py-4">{formatCLP(pack.price)}</td>
+                    <td className="px-6 py-4">{pack.pricePerCredit}</td>
+                    <td className="px-6 py-4 text-slate-200/90">{pack.relation}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </div>
   );

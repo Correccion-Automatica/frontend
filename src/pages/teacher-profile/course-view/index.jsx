@@ -19,12 +19,15 @@ export default function TeacherCourseView() {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [totalStudents, setTotalStudents] = useState(0);
 
   const columns = [
     { header: "Título", accessor: "title" },
-    { header: "Fecha de entrega", accessor: "dueDate" },
+    { header: "Entrega", accessor: "dueDate" },
     { header: "Estado", accessor: "status" },
     { header: "Respuestas", accessor: "answers" },
+    { header: "Corrección", accessor: "correctionStatus" },
+    { header: "Recorrecciones", accessor: "recorrectionsStatus" },
   ];
 
   const handleQuestionDeleted = (id) => {
@@ -35,17 +38,144 @@ export default function TeacherCourseView() {
     const fetchQuestions = async () => {
       try {
         setLoading(true);
-        const res = await api.get(`/questions/${courseId}`);
+        setError(null);
 
-        const formatted = res.data.map((q) => ({
-          id: q.id,
-          title: q.title || "Sin título",
-          dueDate: q.endDatetime
-            ? new Date(q.endDatetime).toLocaleDateString("es-CL")
-            : "Sin fecha",
-          status: q.isPublished ? "PUBLICADA" : "BORRADOR",
-          answers: `${q.numAnswers || 0}/${q.numStudents || 0}`,
-        }));
+        // 0) Obtener información del curso (numStudents) - PRIMERO
+        let courseNumStudents = 0;
+        try {
+          const courseRes = await api.get(`/courses/${courseId}`);
+          if (courseRes.data?.numStudents !== undefined && courseRes.data?.numStudents !== null) {
+            courseNumStudents = Number(courseRes.data.numStudents);
+            setTotalStudents(courseNumStudents);
+          }
+        } catch (err) {
+          console.error("Error obteniendo información del curso:", err);
+        }
+
+        // 1) Preguntas del curso
+        const res = await api.get(`/questions/${courseId}`);
+        const courseQuestions = res.data || [];
+
+        // ✅ Si no hay preguntas, no llamamos answers ni recorrections
+        if (courseQuestions.length === 0) {
+          setQuestions([]);
+          return;
+        }
+
+        // 2) answers/all para mapear answerId -> questionId y contar respuestas por pregunta
+        const answersRes = await api.get("/answers/all");
+        const allAnswers = answersRes.data || [];
+
+        const answerIdToQuestionId = new Map();
+        const questionIdToAnswerCount = new Map();
+        const questionIdToGradedCount = new Map();
+
+        for (const a of allAnswers) {
+          if (a?.id == null || a?.questionId == null) continue;
+          const qId = Number(a.questionId);
+          answerIdToQuestionId.set(Number(a.id), qId);
+
+          // Contar respuestas por pregunta
+          questionIdToAnswerCount.set(qId, (questionIdToAnswerCount.get(qId) || 0) + 1);
+
+          // Contar respuestas corregidas (con grade !== null)
+          if (a?.grade !== null && a?.grade !== undefined) {
+            questionIdToGradedCount.set(qId, (questionIdToGradedCount.get(qId) || 0) + 1);
+          }
+        }
+
+        // 3) recorrections pendientes (newGrade === null)
+        let recs = [];
+        try {
+          const recRes = await api.get("/recorrection");
+          recs = recRes.data || [];
+        } catch (err) {
+          const status = err?.response?.status;
+          // ✅ 404 = no hay recorrecciones, lo tratamos como vacío
+          if (status === 404) recs = [];
+          else throw err;
+        }
+
+        const questionsWithPendingRecorrections = new Set();
+        for (const r of recs) {
+          if (!r?.answerId) continue;
+          if (r.newGrade !== null && r.newGrade !== undefined) continue;
+
+          const qId = answerIdToQuestionId.get(Number(r.answerId));
+          if (qId != null) questionsWithPendingRecorrections.add(Number(qId));
+        }
+
+        // 4) Formateo final (✅ fecha + hora)
+        const formatted = courseQuestions.map((q) => {
+          const hasPending = questionsWithPendingRecorrections.has(Number(q.id));
+          const qId = Number(q.id);
+
+          // Calcular respuestas recibidas y corregidas desde los datos reales
+          const numAnswers = questionIdToAnswerCount.get(qId) || 0;
+          const numGraded = questionIdToGradedCount.get(qId) || 0;
+          const hasUncorrected = numAnswers > 0 && numGraded < numAnswers;
+
+          return {
+            id: q.id,
+            title: q.title || "Sin título",
+
+            dueDate: q.endDatetime
+              ? new Date(q.endDatetime).toLocaleString("es-CL", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })
+              : "Sin fecha",
+
+            endDatetimeRaw: q.endDatetime || null,
+
+            status: q.isPublished ? "PUBLICADA" : "SIN PUBLICAR",
+
+            // respuestas recibidas / total estudiantes del curso
+            answers: `${numAnswers}/${courseNumStudents || 0}`,
+
+            correctionStatus: numAnswers === 0 ? (
+              <span
+                title="No hay respuestas recibidas"
+                className="inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 px-2 py-1 text-[11px] font-semibold"
+              >
+                ⏳ Sin respuestas
+              </span>
+            ) : hasUncorrected ? (
+              <span
+                title="Hay respuestas pendientes de corrección"
+                className="inline-flex items-center gap-1 rounded-full bg-red-100 text-red-800 px-2 py-1 text-[11px] font-semibold"
+              >
+                ⚠️ Pendiente
+              </span>
+            ) : (
+              <span
+                title="Todas las respuestas están corregidas"
+                className="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-800 px-2 py-1 text-[11px] font-semibold"
+              >
+                ✅ Corregidas
+              </span>
+            ),
+
+            // opcional, por si la tabla lo usa
+            hasPendingRecorrections: hasPending,
+
+            recorrectionsStatus: hasPending ? (
+              <span
+                title="Tienes recorrecciones pendientes"
+                className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-1 text-[11px] font-semibold"
+              >
+                ❗ Pendiente
+              </span>
+            ) : (
+              <span
+                title="Sin recorrecciones pendientes"
+                className="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-800 px-2 py-1 text-[11px] font-semibold"
+              >
+                ✅ Ok
+              </span>
+            ),
+          };
+        });
 
         setQuestions(formatted);
       } catch (err) {
@@ -61,26 +191,35 @@ export default function TeacherCourseView() {
 
   return (
     <div className="mt-6 px-4 space-y-6">
-
       <PageHeader
         columns={[
-          courseName
-            ? `${courseName} (${courseCode}) - ${coursePeriod}`
-            : `Curso ${courseId}`,
+          courseName ? `${courseName} (${courseCode}) - ${coursePeriod}` : `Curso ${courseId}`,
         ]}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-
-        <div className="lg:col-span-1">
+        {/* Sidebar */}
+        <div className="lg:col-span-1 space-y-4">
           <CreditOptionDisplay userName={sidebarName} credits={sidebarCredits} />
+
+          {/* CTA recomendado en sidebar */}
+          <Link to={`/teacher-profile/course-view/${courseId}/create-question`}>
+            <ButtonPrimary className="w-full">➕ Crear nueva pregunta</ButtonPrimary>
+          </Link>
+
+          <Link
+            to={`/teacher-profile/course-view/${courseId}/add-users`}
+            state={{ courseName, courseCode, coursePeriod }}
+            className="block w-full text-center py-2.5 px-4 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium transition-colors"
+          >
+            👥 Invitar estudiantes
+          </Link>
         </div>
 
+        {/* Main */}
         <div className="lg:col-span-3 space-y-4">
           {loading ? (
-            <p className="text-center text-[var(--color-muted)]">
-              Cargando preguntas...
-            </p>
+            <p className="text-center text-(--color-muted)">Cargando preguntas...</p>
           ) : error ? (
             <p className="text-center text-red-500">{error}</p>
           ) : questions.length > 0 ? (
@@ -92,18 +231,11 @@ export default function TeacherCourseView() {
               backTo={`/teacher-profile/course-view/${courseId}`}
             />
           ) : (
-            <p className="text-center text-[var(--color-muted)]">
+            <p className="text-center text-(--color-muted)">
               No hay preguntas creadas para este curso aún.
             </p>
           )}
-
-          <div className="flex justify-center mt-4">
-            <Link to={`/teacher-profile/course-view/${courseId}/create-question`}>
-              <ButtonPrimary>➕ Crear nueva pregunta</ButtonPrimary>
-            </Link>
-          </div>
         </div>
-
       </div>
     </div>
   );

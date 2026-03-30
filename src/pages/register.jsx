@@ -1,53 +1,96 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthProvider';
-import { useNavigate } from 'react-router-dom';
-import { getOrganizations } from '../hooks/api';
+import React, { useMemo, useState, useEffect } from "react";
+import { useAuth } from "../context/AuthProvider";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { getOrganizations } from "../hooks/api";
+import { api } from "../lib/axios";
 
 function Register() {
   const { signUp, signIn, loading } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ fullName: '', email: '', firstRole: '', password: '', confirmPassword: '', organizationId: '' });
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const isInviteMode = location.pathname === "/register/invite";
+  const inviteToken = searchParams.get("token");
 
+  const [form, setForm] = useState({
+    fullName: "",
+    email: "",
+    firstRole: "",
+    password: "",
+    confirmPassword: "",
+    organizationId: "",
+  });
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  const [orgs, setOrgs] = useState([]); // [{id, name}]
+  const [orgs, setOrgs] = useState([]);
   const [orgsLoading, setOrgsLoading] = useState(true);
-  const [orgsError, setOrgsError] = useState('');
+  const [orgsError, setOrgsError] = useState("");
+  const [inviteData, setInviteData] = useState(null);
+  const [inviteLoading, setInviteLoading] = useState(isInviteMode && !!inviteToken);
+  const [inviteError, setInviteError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
+    if (isInviteMode && inviteToken) {
+      (async () => {
+        try {
+          setInviteLoading(true);
+          setInviteError("");
+          const { data } = await api.get(`/invitations/accept/${inviteToken}`);
+          if (isMounted) {
+            setInviteData(data);
+            setForm((prev) => ({
+              ...prev,
+              email: data.email || "",
+              organizationId: data.organizationId != null ? String(data.organizationId) : "",
+              firstRole: "STUDENT",
+            }));
+          }
+        } catch (e) {
+          if (isMounted) setInviteError(e.response?.data?.error || "Enlace de invitación no válido o expirado.");
+          console.error("Invitation accept error:", e);
+        } finally {
+          if (isMounted) setInviteLoading(false);
+        }
+      })();
+      return;
+    }
     (async () => {
       try {
         setOrgsLoading(true);
-        setOrgsError('');
+        setOrgsError("");
         const res = await getOrganizations();
-        console.log("RES: ", res)
-        if (!res) throw new Error(`HTTP ${res.status}`);
-
+        if (!res) throw new Error(`HTTP ${res?.status}`);
         if (isMounted) setOrgs(res || []);
       } catch (e) {
-        if (isMounted) setOrgsError('No se pudieron cargar las organizaciones.');
-        console.error('Fetch organizations error:', e);
+        if (isMounted) setOrgsError("No se pudieron cargar las organizaciones.");
+        console.error("Fetch organizations error:", e);
       } finally {
         if (isMounted) setOrgsLoading(false);
       }
     })();
-    return () => { isMounted = false; };
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [isInviteMode, inviteToken]);
 
   const emailValid = useMemo(() => /[^@\s]+@[^@\s]+\.[^@\s]+/.test(form.email), [form.email]);
   const pwdLength = useMemo(() => form.password.length > 7, [form.password]);
   const pwdMatch = useMemo(() => form.password === form.confirmPassword, [form.password, form.confirmPassword]);
-  const canSubmit = useMemo(() =>
-    form.fullName.trim() && emailValid && pwdMatch && !!form.firstRole && !!form.organizationId && !submitting,
-    [form.fullName, emailValid, pwdMatch, form.firstRole, form.organizationId, submitting]
+  const canSubmit = useMemo(
+    () =>
+      form.fullName.trim() &&
+      emailValid &&
+      pwdMatch &&
+      !!form.firstRole &&
+      !!form.organizationId &&
+      !submitting &&
+      (!isInviteMode || !!inviteData),
+    [form.fullName, emailValid, pwdMatch, form.firstRole, form.organizationId, submitting, isInviteMode, inviteData],
   );
 
-  const onChange = (key) => (e) => {
-    setForm((prev) => ({ ...prev, [key]: e.target.value }));
-  };
+  const onChange = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
   const handleRegister = async () => {
     if (!canSubmit) return;
@@ -55,198 +98,288 @@ function Register() {
     try {
       const { fullName, email, password, confirmPassword, firstRole, organizationId } = form;
       const organizationIdNumber = Number(organizationId);
-      const registerResponse = await signUp(fullName, email, firstRole, password, confirmPassword, organizationIdNumber);
-      console.log("register response: ", registerResponse);
-      const loggedUser = await signIn(email, password);
-      window.alert('¡Cuenta creada! Bienvenido a Automatic Correction');
-      const rawRole = (loggedUser?.role || loggedUser?.firstRole || firstRole || '').toLowerCase();
-
-      if (rawRole.includes('admin')) {
-        navigate('/admin-dashboard');
-      } else if (rawRole.includes('teacher')) {
-        navigate('/teacher-profile');
+      if (isInviteMode && inviteToken) {
+        await api.post("/authentication/register", {
+          fullName,
+          email,
+          firstRole,
+          password,
+          confirmPassword,
+          organizationId: organizationIdNumber,
+          invitationToken: inviteToken,
+        });
+        const loggedUser = await signIn(email, password);
+        window.alert("Cuenta creada. Ya estás inscrito en el curso.");
+        navigate("/student-profile");
       } else {
-        // por defecto, estudiante
-        navigate('/student-profile');
+        await signUp(fullName, email, firstRole, password, confirmPassword, organizationIdNumber);
+        const loggedUser = await signIn(email, password);
+        window.alert("Cuenta creada! Bienvenido a Automatic Correction");
+        const rawRole = (loggedUser?.role || loggedUser?.firstRole || firstRole || "").toLowerCase();
+        if (rawRole.includes("admin")) navigate("/admin-dashboard");
+        else if (rawRole.includes("teacher")) navigate("/teacher-profile");
+        else navigate("/student-profile");
       }
     } catch (err) {
       console.error(err);
-      alert('Ocurrió un error al registrar. Inténtalo nuevamente.');
+      alert(err.response?.data?.error || "Ocurrió un error al registrar. Inténtalo nuevamente.");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <>
-      <div className="min-h-screen bg-(--color-background) transition-colors duration-300">
-        <div className='h-24' />
+    <div
+      className="min-h-screen w-full bg-[#f6f7fb] flex items-center justify-center px-4 py-10"
+      style={{ fontFamily: "Inter, Arial, sans-serif" }}
+    >
+      <div className="w-full max-w-[1400px] min-h-[90vh] grid grid-cols-1 lg:grid-cols-2 rounded-[32px] overflow-hidden shadow-[0_30px_90px_rgba(15,23,42,0.18)]">
+        {/* Panel izquierdo */}
+        <div
+          className="relative w-full h-full px-6 lg:px-12 py-12 text-white flex items-center"
+          style={{
+            background: "linear-gradient(135deg, #1a0b2a 0%, #28134d 45%, #1f4a8b 100%)",
+          }}
+        >
+          <div
+            className="absolute inset-0 opacity-90 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(circle at 20% 30%, rgba(255,255,255,0.08), transparent 35%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.06), transparent 40%)",
+            }}
+          />
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute w-[900px] h-[900px] rounded-full border border-white/6 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute w-[760px] h-[760px] rounded-full border border-white/8 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute w-[620px] h-[620px] rounded-full border border-white/10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute w-[480px] h-[480px] rounded-full border border-white/10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute w-[1080px] h-[1080px] rounded-full border border-white/4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          </div>
 
-        <div className="mx-auto max-w-6xl px-4 md:px-10">
-          <div className="flex flex-col md:flex-row gap-10 md:gap-14 items-start">
-            {/* Left: Title & pitch */}
-            <section className="md:w-5/12">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-(--color-text)">Crea tu cuenta</h1>
-              <p className="mt-3 text-(--color-muted) leading-relaxed">
-                Bienvenida/o a la plataforma. Regístrate para comenzar a utilizar las herramientas de
-                aprendizaje y evaluación. Si ya tienes cuenta, <a href="/login" className="text-blue-600 dark:text-blue-400 hover:underline">inicia sesión aquí</a>.
-              </p>
+          <div className="relative z-10 w-full max-w-[620px] mx-auto text-left space-y-6">
+            <h1 className="text-4xl lg:text-[44px] font-bold leading-tight">
+              {isInviteMode && inviteData
+                ? "Completa tu registro para unirte al curso"
+                : "Comienza tu viaje en la automatización"}
+            </h1>
+            <p className="text-white/90 text-base lg:text-lg max-w-2xl leading-relaxed">
+              {isInviteMode && inviteData ? (
+                <>
+                  Te han invitado al curso <strong>{inviteData.courseName}</strong>
+                  {inviteData.courseCode ? ` (${inviteData.courseCode})` : ""}. Crea tu cuenta con el correo de la invitación para acceder.
+                </>
+              ) : (
+                "Regístrate para acceder a las herramientas de aprendizaje, evaluación y gestión de cursos."
+              )}
+            </p>
 
-              <div className="mt-8 rounded-2xl border border-(--color-border) bg-(--color-surface) p-5 shadow-sm">
-                <h2 className="font-semibold text-(--color-text)">¿Eres nueva/o?</h2>
-                <p className="mt-2 text-sm text-(--color-muted)">
-                  Selecciona tu rol (Profesor o Estudiante). Esto nos ayuda a personalizar tu experiencia y
-                  permisos dentro del sistema.
-                </p>
-                <ul className="mt-4 space-y-2 text-sm text-(--color-muted) list-disc list-inside">
-                  <li>Acceso seguro con contraseña y verificación básica.</li>
-                  <li>Interfaz limpia con foco en productividad.</li>
-                  <li>Compatible con navegación móvil y escritorio.</li>
-                </ul>
-              </div>
-            </section>
-
-            {/* Right: Form card */}
-            <section className="md:w-7/12 w-full">
-              <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 md:p-8">
-                <form
-                  className="grid grid-cols-1 gap-5"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleRegister();
-                  }}
-                  noValidate
+            <div className="space-y-3">
+              {[
+                { title: "estudiante", desc: "ver cursos, responder preguntas y recibir retroalimentación.", pill: "bg-[#e43aff]" },
+                { title: "profesor", desc: "gestionar cursos, crear preguntas y revisar respuestas.", pill: "bg-[#6b8bff]" },
+                { title: "administrador", desc: "gestión de profesores y estadísticas.", pill: "bg-[#f8fafc]" },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="flex items-center gap-4 rounded-2xl border border-white/15 bg-white/12 backdrop-blur-[8px] px-5 py-3 mx-auto"
                 >
-                  {/* Nombre completo */}
-                  <div>
-                    <label htmlFor="fullName" className="block font-semibold text-(--color-text)">
-                      Nombre completo <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="fullName"
-                      type="text"
-                      value={form.fullName}
-                      onChange={onChange('fullName')}
-                      placeholder="Nombres y Apellidos"
-                      className="mt-1 w-full rounded-lg border border-(--color-border) bg-(--color-background) text-(--color-text) p-3 focus:outline-none focus:ring-2 focus:ring-(--color-primary)"
-                      required
-                    />
-                  </div>
+                  <span
+                    className={`px-3 py-1 text-xs font-semibold rounded-md ${
+                      item.title === "administrador" ? "text-[#0f172a]" : "text-white"
+                    } ${item.pill}`}
+                  >
+                    {item.title}
+                  </span>
+                  <p className="text-white/90 text-sm flex-1 leading-relaxed text-left">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-                  {/* Email */}
-                  <div>
-                    <label htmlFor="email" className="block font-semibold text-(--color-text)">
-                      Email <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="email"
-                      type="email"
-                      value={form.email}
-                      onChange={onChange('email')}
-                      placeholder="correo@ejemplo.com"
-                      className="mt-1 w-full rounded-lg border border-(--color-border) bg-(--color-background) text-(--color-text) p-3 focus:outline-none focus:ring-2 focus:ring-(--color-primary)"
-                      required
-                      aria-invalid={!emailValid && form.email.length > 0}
-                      aria-describedby={!emailValid && form.email.length > 0 ? "email-error" : undefined}
-                    />
-                    {!emailValid && form.email.length > 0 && (
-                      <p id="email-error" className="mt-1 text-sm text-red-600">Ingresa un email válido.</p>
-                    )}
-                  </div>
+        {/* Panel derecho: formulario */}
+        <div className="w-full h-full bg-white px-6 sm:px-10 lg:px-14 py-14 flex items-center justify-center">
+          <div className="w-full max-w-xl">
+            {inviteLoading && (
+              <div className="mb-6 text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#2E8FE6]" />
+                <p className="text-[#6b7280] mt-2">Cargando invitación…</p>
+              </div>
+            )}
+            {isInviteMode && inviteError && (
+              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+                {inviteError}
+                <p className="mt-2">
+                  <a href="/register" className="text-[#2563eb] font-semibold hover:underline">Registrarse sin invitación</a>
+                </p>
+              </div>
+            )}
+            {!inviteLoading && !(isInviteMode && inviteError) && (
+            <>
+            <div className="mb-6 text-left text-sm text-[#6b7280]">
+              <p>{isInviteMode && inviteData ? "Completa tus datos para unirte al curso" : "Completa tus datos para comenzar"}</p>
+            </div>
 
-                  {/* Rol */}
-                  <div>
-                    <label htmlFor="firstRole" className="block font-semibold text-black">Rol <span className="text-red-500">*</span></label>
-                    <select
-                      id="firstRole"
-                      value={form.firstRole}
-                      onChange={onChange('firstRole')}
-                      className="mt-1 w-full appearance-none rounded-lg border border-slate-300 bg-white p-3 focus:outline-none focus:ring-2 focus:ring-blue-800"
+            <form
+              className="space-y-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleRegister();
+              }}
+              noValidate
+            >
+              <div>
+                <label htmlFor="fullName" className="block font-semibold text-[#0f172a]">
+                  Nombre completo <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="fullName"
+                  type="text"
+                  value={form.fullName}
+                  onChange={onChange("fullName")}
+                  placeholder="Nombres y Apellidos"
+                  className="mt-1 w-full h-12 rounded-xl border border-[#d1d5db] bg-white text-[#0f172a] px-4 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block font-semibold text-[#0f172a]">
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={form.email}
+                  onChange={onChange("email")}
+                  placeholder="correo@ejemplo.com"
+                  readOnly={isInviteMode && !!inviteData}
+                  className={`mt-1 w-full h-12 rounded-xl border border-[#d1d5db] px-4 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6] ${isInviteMode && inviteData ? "bg-gray-100 text-[#0f172a] cursor-not-allowed" : "bg-white text-[#0f172a]"}`}
+                  required
+                  aria-invalid={!emailValid && form.email.length > 0}
+                  aria-describedby={!emailValid && form.email.length > 0 ? "email-error" : undefined}
+                />
+                {!emailValid && form.email.length > 0 && (
+                  <p id="email-error" className="mt-1 text-sm text-red-600">
+                    Ingresa un email válido.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="firstRole" className="block font-semibold text-[#0f172a]">
+                  Rol <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="firstRole"
+                  value={form.firstRole}
+                  onChange={onChange("firstRole")}
+                  disabled={isInviteMode && !!inviteData}
+                  className={`mt-1 w-full h-12 rounded-xl border border-[#d1d5db] px-4 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6] ${isInviteMode && inviteData ? "bg-gray-100 cursor-not-allowed" : "bg-white"}`}
+                  required
+                >
+                  <option value="" disabled>
+                    Selecciona tu rol
+                  </option>
+                  <option value="TEACHER">Profesor</option>
+                  <option value="STUDENT">Estudiante</option>
+                </select>
+                {isInviteMode && inviteData && (
+                  <p className="mt-1 text-xs text-[#6b7280]">Registro por invitación: rol estudiante.</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label htmlFor="password" className="block font-semibold text-[#0f172a]">
+                    Contraseña <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative mt-1">
+                    <input
+                      id="password"
+                      type={showPwd ? "text" : "password"}
+                      value={form.password}
+                      onChange={onChange("password")}
+                      placeholder="••••••••"
+                      className="w-full h-12 rounded-xl border border-[#d1d5db] bg-white text-[#0f172a] px-4 pr-12 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6]"
                       required
+                      minLength={8}
+                      aria-describedby="pwd-help"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPwd((s) => !s)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6b7280] hover:text-[#111827] text-sm"
+                      aria-label={showPwd ? "Ocultar contraseña" : "Mostrar contraseña"}
                     >
-                      <option value="" disabled>Selecciona tu rol</option>
-                      <option value="TEACHER">Profesor</option>
-                      <option value="STUDENT">Estudiante</option>
-                    </select>
+                      {showPwd ? "Ocultar" : "Mostrar"}
+                    </button>
                   </div>
+                  {!pwdLength && (
+                    <p id="pwd-help" className="mt-1 text-xs text-red-600">
+                      Mínimo 8 caracteres.
+                    </p>
+                  )}
+                </div>
 
-                  {/* Passwords */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label htmlFor="password" className="block font-semibold text-(--color-text)">
-                        Contraseña <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative mt-1">
-                        <input
-                          id="password"
-                          type={showPwd ? "text" : "password"}
-                          value={form.password}
-                          onChange={onChange('password')}
-                          placeholder="••••••••"
-                          className="w-full rounded-lg border border-(--color-border) bg-(--color-background) text-(--color-text) p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-(--color-primary)"
-                          required
-                          minLength={8}
-                          aria-describedby="pwd-help"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPwd((s) => !s)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
-                          aria-label={showPwd ? "Ocultar contraseña" : "Mostrar contraseña"}
-                        >
-                          {showPwd ? "Ocultar" : "Mostrar"}
-                        </button>
-                      </div>
-                      {!pwdLength && <p id="pwd-help" className="mt-1 text-xs text-red-600">Mínimo 8 caracteres.</p>}
-                    </div>
-
-                    <div>
-                      <label htmlFor="confirm" className="block font-semibold text-(--color-text)">
-                        Confirmar contraseña <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative mt-1">
-                        <input
-                          id="confirm"
-                          type={showConfirm ? "text" : "password"}
-                          value={form.confirmPassword}
-                          onChange={onChange('confirmPassword')}
-                          placeholder="••••••••"
-                          className="w-full rounded-lg border border-(--color-border) bg-(--color-background) text-(--color-text) p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-(--color-primary)"
-                          required
-                          minLength={8}
-                          aria-invalid={!pwdMatch && form.confirmPassword.length > 7}
-                          aria-describedby={!pwdMatch && form.confirmPassword.length > 7 ? "confirm-error" : undefined}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirm((s) => !s)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
-                          aria-label={showConfirm ? "Ocultar confirmación" : "Mostrar confirmación"}
-                        >
-                          {showConfirm ? "Ocultar" : "Mostrar"}
-                        </button>
-                      </div>
-                      {!pwdMatch && (
-                        <p id="confirm-error" className="mt-1 text-sm text-red-600">Las contraseñas no coinciden.</p>
-                      )}
-                    </div>
+                <div>
+                  <label htmlFor="confirm" className="block font-semibold text-[#0f172a]">
+                    Confirmar contraseña <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative mt-1">
+                    <input
+                      id="confirm"
+                      type={showConfirm ? "text" : "password"}
+                      value={form.confirmPassword}
+                      onChange={onChange("confirmPassword")}
+                      placeholder="••••••••"
+                      className="w-full h-12 rounded-xl border border-[#d1d5db] bg-white text-[#0f172a] px-4 pr-12 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6]"
+                      required
+                      minLength={8}
+                      aria-invalid={!pwdMatch && form.confirmPassword.length > 7}
+                      aria-describedby={!pwdMatch && form.confirmPassword.length > 7 ? "confirm-error" : undefined}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm((s) => !s)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6b7280] hover:text-[#111827] text-sm"
+                      aria-label={showConfirm ? "Ocultar confirmación" : "Mostrar confirmación"}
+                    >
+                      {showConfirm ? "Ocultar" : "Mostrar"}
+                    </button>
                   </div>
+                  {!pwdMatch && (
+                    <p id="confirm-error" className="mt-1 text-sm text-red-600">
+                      Las contraseñas no coinciden.
+                    </p>
+                  )}
+                </div>
+              </div>
 
-                  {/* Organización */}
-                  <div>
-                    <label htmlFor="organizationId" className="block font-semibold text-black">
-                      Organización <span className="text-red-500">*</span>
-                    </label>
+              <div>
+                <label htmlFor="organizationId" className="block font-semibold text-[#0f172a]">
+                  Organización <span className="text-red-500">*</span>
+                </label>
+                {isInviteMode && inviteData ? (
+                  <input
+                    id="organizationId"
+                    type="text"
+                    readOnly
+                    value={inviteData.organizationName || `Organización #${inviteData.organizationId}`}
+                    className="mt-1 w-full h-12 rounded-xl border border-[#d1d5db] bg-gray-100 text-[#0f172a] px-4 cursor-not-allowed"
+                  />
+                ) : (
+                  <>
                     <select
                       id="organizationId"
                       value={form.organizationId}
-                      onChange={onChange('organizationId')}
-                      className="mt-1 w-full appearance-none rounded-lg border border-slate-300 bg-white p-3 focus:outline-none focus:ring-2 focus:ring-blue-800"
+                      onChange={onChange("organizationId")}
+                      className="mt-1 w-full h-12 rounded-xl border border-[#d1d5db] bg-white px-4 focus:outline-none focus:ring-2 focus:ring-[#2E8FE6]"
                       required
                       disabled={orgsLoading || !!orgsError}
                     >
                       <option value="" disabled>
-                        {orgsLoading ? 'Cargando organizaciones…' : 'Selecciona tu organización'}
+                        {orgsLoading ? "Cargando organizaciones…" : "Selecciona tu organización"}
                       </option>
                       {orgs.map((o) => (
                         <option key={o.id} value={String(o.id)}>
@@ -259,32 +392,32 @@ function Register() {
                         {orgsError} Intenta recargar la página.
                       </p>
                     )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      className="w-full rounded-2xl bg-black px-4 py-3 font-bold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
-                    >
-                      {submitting || loading ? "Creando cuenta…" : "Crear cuenta"}
-                    </button>
-                    <p className="mt-3 text-center text-sm text-(--color-muted)">
-                      Al registrarte, aceptas nuestros <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">Términos</a> y la <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">Política de Privacidad</a>.
-                    </p>
-                  </div>
-                </form>
+                  </>
+                )}
               </div>
-            </section>
+
+              <div className="pt-2 space-y-3">
+                <button
+                  type="submit"
+                  className="w-full h-12 rounded-xl bg-[#0b1a33] text-white font-semibold shadow-[0_14px_32px_rgba(11,26,51,0.25)] hover:brightness-110 transition disabled:opacity-60"
+                  disabled={submitting || loading}
+                >
+                  {submitting || loading ? "Creando cuenta…" : "Crear cuenta"}
+                </button>
+                <p className="text-center text-sm text-[#6b7280]">
+                  ¿Ya tienes cuenta?{" "}
+                  <a href="/login" className="text-[#2563eb] font-semibold hover:underline">
+                    Inicia sesión aquí
+                  </a>
+                </p>
+              </div>
+            </form>
+            </>
+            )}
           </div>
         </div>
-
-        <div className="mt-16 border-t border-(--color-border)" />
-        <div className="py-8 text-center text-xs text-(--color-muted)">
-          © {new Date().getFullYear()}— Automatic Correction
-        </div>
       </div>
-    </>
+    </div>
   );
 }
 
