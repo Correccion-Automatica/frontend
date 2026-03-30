@@ -37,7 +37,6 @@ export default function Footer() {
       // ignore refresh failures
     }
     const footerEl = footerRef.current;
-    console.log('Footer useEffect run, footerEl:', footerEl);
     if (footerEl) {
       const rect = footerEl.getBoundingClientRect();
       if (rect.top < window.innerHeight) {

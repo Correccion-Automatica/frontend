@@ -28,7 +28,6 @@ export default function Login() {
   }, [location.state]);
 
   const handleSubmit = async (e) => {
-    console.log("submit");
 
     e.preventDefault();
     setError("");

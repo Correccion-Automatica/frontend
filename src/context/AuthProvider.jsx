@@ -51,7 +51,6 @@ export default function AuthProvider({ children }) {
 
   const signUp = useCallback(
     async (fullName, email, firstRole, password, confirmPassword, organizationId) => {
-      console.log("entra acá??");
       // Si tu backend NO usa CSRF, borra esta línea
       // await api.get("/auth/csrf").catch(() => { });
       const body = {
@@ -62,7 +61,6 @@ export default function AuthProvider({ children }) {
         confirmPassword,
         organizationId
       }
-      console.log("body enviándose: ", body);
       const register = await api.post("/authentication/register",
         body
       );

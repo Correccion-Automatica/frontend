@@ -40,7 +40,6 @@ export default function CreateCourse() {
       };
 
       const response = await api.post("/courses", payload);
-      console.log("✅ Curso creado (respuesta completa):", response.data);
 
       // 🔹 Tomamos el curso correctamente del backend
       const course = response.data.course;

@@ -95,7 +95,6 @@ export default function QuestionView() {
   // 🔹 Guardar cambios (en tu implementación real el PATCH lo hace QuestionForm)
   const handleSave = async () => {
     try {
-      console.log("🔄 Enviando datos actualizados:", {
         title,
         days,
         hours,

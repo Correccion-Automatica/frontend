@@ -34,7 +34,6 @@ import PrivacyPolicy from './pages/legal/privacy.jsx';
 import CookiesPolicy from './pages/legal/cookies.jsx';
 
 import ProtectedRoute from './components/ProtectedRoute.jsx';
-import RequireRole from './components/RequiredRole.jsx';
 import GuidelineStatusListener from './components/GuidelineStatusListener.jsx';
 
 import Purchase from './pages/payments/purchase.jsx';
